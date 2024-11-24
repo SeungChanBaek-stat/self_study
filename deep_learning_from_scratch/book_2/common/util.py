@@ -116,18 +116,18 @@ def ppmi(C : np.ndarray, verbose = False, eps = 1e-8):
 
 
 def ppmi_optimized(C: np.ndarray, verbose=False, eps=1e-8):
-    M = np.zeros_like(C, dtype=np.float32)    # PPMI matrix
-    N = np.sum(C)   # Total number of word pairs
-    S = np.sum(C, axis=0)  # Sum over columns (word occurrence counts)
+    M = np.zeros_like(C, dtype=np.float32)    # PPMI를 담을 행렬
+    N = np.sum(C)   # 말뭉치에 포함된 단어의 총 개수
+    S = np.sum(C, axis=0)  # 각 단어의 출현 횟수
     vocab_size = C.shape[0]
-    total = (vocab_size * (vocab_size + 1)) // 2  # Number of elements in the upper triangle (including diagonal)
+    total = (vocab_size * (vocab_size + 1)) // 2  # 상삼각 (대각성분 포함)
     cnt = 0
 
     for i in range(vocab_size):
         for j in range(i, vocab_size):
             pmi = np.log2(C[i, j] * N / (S[i] * S[j]) + eps)
             M[i, j] = max(0, pmi)
-            M[j, i] = M[i, j]  # Mirror the value to the symmetric position
+            M[j, i] = M[i, j]  # 대칭 성분 계산
 
             if verbose:
                 cnt += 1
@@ -169,3 +169,59 @@ def convert_one_hot(corpus : np.ndarray, vocab_size):
                 one_hot[idx_0, idx_1, word_id] = 1
 
     return one_hot
+
+
+
+def to_cpu(x):
+    import numpy
+    if type(x) == numpy.ndarray:
+        return x
+    return np.asnumpy(x)
+
+
+def to_gpu(x):
+    import cupy
+    if type(x) == cupy.ndarray:
+        return x
+    return cupy.asarray(x)
+
+
+
+def analogy(a, b, c, word_to_id, id_to_word, word_matrix, top=5, answer=None):
+    for word in (a, b, c):
+        if word not in word_to_id:
+            print('%s(을)를 찾을 수 없습니다.' % word)
+            return
+
+    print('\n[analogy] ' + a + ':' + b + ' = ' + c + ':?')
+    a_vec, b_vec, c_vec = word_matrix[word_to_id[a]], word_matrix[word_to_id[b]], word_matrix[word_to_id[c]]
+    query_vec = b_vec - a_vec + c_vec
+    query_vec = normalize(query_vec)
+
+    similarity = np.dot(word_matrix, query_vec)
+
+    if answer is not None:
+        print("==>" + answer + ":" + str(np.dot(word_matrix[word_to_id[answer]], query_vec)))
+
+    count = 0
+    for i in (-1 * similarity).argsort():
+        if np.isnan(similarity[i]):
+            continue
+        if id_to_word[i] in (a, b, c):
+            continue
+        print(' {0}: {1}'.format(id_to_word[i], similarity[i]))
+
+        count += 1
+        if count >= top:
+            return
+        
+
+
+def normalize(x : np.ndarray):
+    if x.ndim == 2:
+        s = np.sqrt((x * x).sum(1))
+        x /= s.reshape((s.shape[0], 1))
+    elif x.ndim == 1:
+        s = np.sqrt((x * x).sum())
+        x /= s
+    return x

@@ -28,10 +28,10 @@ print('동시발생 행렬')
 print(C)
 print('-'*40)
 
-print('PPMI 와 PPMI_optimized 동일유무 : ', W == W_opt) # np.allclose(W, W_opt)
+print('PPMI 와 PPMI_opt 동일유무 : ', W == W_opt) # np.allclose(W, W_opt)
 
 print('PPMI')
 print(W, '\n', f'PPMI Elapsed time: {end_time - start_time}')
 
-print('PPMI_optimized')
-print(W_opt, '\n', f'PPMI_optimized Elapsed time: {end_time_opt - start_time_opt}')
+print('PPMI_opt')
+print(W_opt, '\n', f'PPMI_opt Elapsed time: {end_time_opt - start_time_opt}')
