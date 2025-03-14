@@ -1,0 +1,120 @@
+---
+title: "고급회귀분석 2장"
+output: html_document
+date: "2025-03-11"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 2.5 R 실습
+
+이 절에서는 2장에서의 예제를 R 실습을 통해 살펴보기로 한다. 먼저 예 2.3의 자료로부터 모평균에 대한 95% 신뢰구간을 구해본다. 이 경우는 모평균과 모분산이 알려져 있지 않고, n = 9의 자료로부터 모평균에 대한 추정을 하는 문제이다.
+
+```{r}
+x <- c(9.0, 9.1, 8.8, 9.1, 9.0, 9.4, 9.2, 8.8, 8.6)
+t.test(x)$conf.int
+```
+
+위에서 살펴보면 t.test()함수를 사용하면 디폴트 결과로 모평균에 관한 95% 신뢰구간을 얻을 수 있다. 예를 들어 99% 신뢰구간을 구하는 경우에는 t.test() 함수의 인자를 다음과 같이 지정할 수 있다.
+
+```{r}
+t.test(x, conf.level = 0.99)$conf.int
+```
+
+이제 예 2.4에 대하여 다음 각 대립가설에 대한 유의확률을 살펴 보자. 먼저 각 귀무가설에 대한 유의확률을 알아보면 다음과 같다.
+  (1) $H_0 : \mu > 73.7 \leftrightarrow$ 유의확률 $= P(Z > z_0)$ 
+  (2) $H_0 : \mu < 73.7 \leftrightarrow$ 유의확률 $= P(Z < z_0)$ 
+  (3) $H_0 : \mu \neq 73.7 \leftrightarrow$ 유의확률 $= P(|Z| > |z_0|)$ 
+
+유의확률은 표준정규확률변수의 분포함수 pnorm()을 사용한다. 위 가설에 대한 유의확률을 각각 P.H1, P.H2, P.H3 이라 할 때 다음과 같이 구할 수 있다.
+
+```{r}
+mu <- 73.7; xbar = 75.1; sigma <- 1; n <- 16
+z0 = (xbar - mu)/(sigma/sqrt(n))
+
+P.H1 <- pnorm(z0, lower.tail = FALSE); P.H1
+P.H2 <- pnorm(z0, lower.tail = TRUE); P.H2
+P.H3 <- 2 * pnorm(z0, lower.tail = FALSE); P.H3
+```
+
+여기서 양측검정의 유의확률을 구할 때에는 다음과 같이 구할수도 있다.
+
+```{r}
+P.H3 <- pnorm(-z0, lower.tail = TRUE) + pnorm(z0, lower.tail = FALSE); P.H3
+```
+
+예 2.4는 모분산이 알려진 경우로 Z-검정을 실시했지만, 예 2.5에서는 모분산이 미지인 경우로 모평균에 관한 검정으로 t-검정을 실시한다. t-검정일때는 t-분포의 분포함수 pt()함수를 사용하여 대립가설 $H_1 : \mu < 2.0$에 관한 유의확률을 다음과 같이 구할 수 있다.
+
+```{r}
+mu <- 2; xbar = 1.96; s <- 0.05; n <- 50
+t0 <- (xbar - mu)/(s/sqrt(n))
+pt(t0, df = 49, lower.tail = TRUE)
+```
+
+유의확률 대신 기각값은 qt()함수를 사용하여 다음과 같이 구할 수 있다.
+
+```{r}
+qt(0.05, df = 49)
+```
+
+이제 분포함수에 관한 R명령어를 간단히 소개하기로 한다. 이때 각 인자의 q는 분위수(벡터)를 나타내고, p는 확률(벡터)을 나타낸다.
+
+```{r table}
+library(knitr)
+library(kableExtra)
+
+df <- data.frame(
+  "분포" = c("정규분포", "포아송분포", "이항분포", "지수분포", 
+             "카이제곱분포", "t-분포", "F-분포"),
+  "확률밀도함수" = c("dnorm(x,mean,sd)", "dpois(x,lambda)", "dbinom(x,size,prob)", 
+             "dexp(x,rate)", "dchisq(x,df)", "dt(x,df)", "df(x,df1,df2)"),
+  "누적분포함수" = c("pnorm(x,mean,sd)", "ppois(x,lambda)", "pbinom(x,size,prob)",
+                     "pexp(x,rate)", "pchisq(x,df)", "pt(x,df)", "pf(x,df1,df2)"),
+  "분위수함수" = c("qnorm(x,mean,sd)", "qpois(x,lambda)", "qbinom(x,size,prob)",
+                     "qexp(x,rate)", "qchisq(x,df)", "qt(x,df)", "qf(x,df1,df2)")
+)
+
+kable(df, format = "html",
+      caption = "분포함수에 관한 R 명령어") %>%
+      kable_styling("striped", full_width = FALSE) %>%
+      column_spec(1, extra_css = "padding-right : 5px;")
+      
+```
+
+## 연습문제
+
+# 2.5번
+
+```{r}
+x <- c(74.9, 75.5, 72.5, 73.4, 78.2, 77.8)
+x_mean = sum(x) / length(x); x_mean
+x_centered = x - x_mean; x_centered
+sample_variance = sum(x_centered * x_centered) / (length(x) - 1); sample_variance
+sample_deviance = sqrt(sample_variance); sample_deviance
+test_var = var(x); test_var 
+
+s = 2.447 * sample_deviance / sqrt(length(x) - 1); s
+s_lower = x_mean - s; s_upper = x_mean + s
+s_lower; s_upper
+```
+
+# 2.8번
+
+```{r}
+x1 <- c(rep(95, 12))
+x2 <- c(rep(96, 12))
+x3 <- c(rep(97, 15))
+x4 <- c(rep(98, 10))
+x5 <- c(rep(99, 8))
+x6 <- c(rep(100, 3))
+
+x <- c(x1, x2, x3, x4, x5, x6); x
+n <- length(x)
+s_mean = sum(x) / n ; s_mean
+s_var = sum((x - s_mean)^{2}) / (n - 1) ; s_var
+
+z0 = (s_mean - 98.5) / (sqrt(1.5) / sqrt(n)); z0
+qnorm(0.05, lower.tail = FALSE)
+```

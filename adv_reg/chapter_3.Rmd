@@ -1,0 +1,335 @@
+---
+title: "고급회귀분석 3장"
+output: html_document
+date: "2025-03-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 3.3 회귀선의 추정
+
+### (예 3.1)
+
+```{r}
+x0 <- c(rep(1, 10)); x1 <- c(4,8,9,8,8,12,6,10,6,9)
+X <- cbind(x0, x1); y <- c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20)
+n <- length(x1)
+
+# 정규방정식에 의한 풀이
+x_mean = sum(x1)/ n ; y_mean = sum(y) / n
+S_xy = sum((x1-x_mean)*(y-y_mean)) ; S_xx = sum((x1-x_mean)^{2})
+beta_1 = S_xy / S_xx ; beta_0 = y_mean - beta_1 * x_mean
+beta_normal = c(beta_0, beta_1)
+
+
+# 최소제곱추정량에 의한 풀이
+beta_lse = solve(t(X)%*%X) %*% t(X) %*% y
+
+# 두가지 풀이 비교
+beta_normal ; beta_lse # -2.269565  2.608696, -2.269565   2.608696 으로 동일하다
+
+plot(x1, y, main = "산점도 및 회귀선", col = "blue", pch = 5, lwd = 2,
+     xlab = "광고료", ylab = "판매액")
+abline(beta_normal, col = "red", lwd = 2)
+```
+
+## 3.4 회귀선의 정도
+
+### (예 3.2)
+[표 3.1]에 있는 표본자료에 대하여 추정값의 표준오차를 구하시오.
+
+```{r}
+y_hat = beta_normal[1] * x0 + beta_normal[2] * x1 ; y_hat
+s_yx_squared = sum((y - y_hat)^{2}) / (n-2) ; s_yx_squared
+s_yx = sqrt(s_yx_squared) ; s_yx
+```
+
+### (예 3.3)
+[표 3.1]의 자료에 대하여 $\hat{y}_i = \hat{\beta}_0 + \hat{\beta}_1 x_i$ 와 같은 회귀선을 구했을 때 결정계수는 어떤 값을 갖는가?
+
+```{r}
+y_hat = beta_normal[1] * x0 + beta_normal[2] * x1 ; y_hat
+SST = sum((y - y_mean)^{2}) ; SSE = sum((y-y_hat)^{2}) ; SSR = sum((y_hat - y_mean)^{2})
+SST ; SSE ; SSR
+r_squared = SSR / SST ; r_squared
+```
+
+## 3.5 상관분석
+
+### (예 3.4)
+[표 3.1]의 자료에 대하여 표본상관계수를 구하시오.
+
+```{r}
+S_xx = sum((x1 - x_mean)^{2}) ; S_xx
+S_yy = sum((y - y_mean)^{2}) ; S_yy
+S_xy = sum((x1 - x_mean) * (y - y_mean)) ; S_xy
+
+r_squared = SSR/SST ; r_squared
+r = S_xy / sqrt(S_xx * S_yy) ; r ; r^{2}
+```
+
+## 3.6 분산분석
+
+### (예 3.5)
+[표 3.1]의 자료에 대하여 직선회귀의 분산분석표를 작성하고 유의수준 5%로 회귀직선의 유의여부를 검정하시오.
+
+```{r}
+SSE = sum((y - y_hat)^{2}) ; SSR = sum((y_hat - y_mean)^{2})
+df_SSE = n - 2 ; df_SSR = 1
+MSR = SSR / df_SSR ; MSE = SSE / df_SSE
+F_0 = MSR / MSE ; F_0
+F_alpha = qf(0.05, df_SSR, df_SSE, lower.tail = FALSE) ; F_alpha
+```
+
+## 3.9 R 실습
+
+$\textbf{Pearson의 아버지와 아들의 키 데이터}$ 3.1절에서 소개한 키 데이터에 대하여 R 프로그래밍을 살펴보기로 한다. 먼저 단순회귀분석 모형은 R base 함수에서 사용할 수 있지만, 일반적으로 R의 다양한 패키지들은 우리가 예제로 풀어볼 수 있는 방대한 데이터와 유용한 함수들을 저장하고 있어 적절하게 사용한다면 유용하게 이용할 수 있다. 이 절에서는 UsingR 패키지를 설치하여, Pearson (3.3)의 키 데이터를 로딩하기로 한다. 단, 패키지 설치는 처음 그 패키지를 사용할 때만 하면 되지만, library()함수는 패키지를 로딩하는 역할을 하고 있어, 주어진 패키지를 사용하고자 할 때마다 호출해야 한다.
+
+```{r}
+# install.packages("UsingR")
+library(UsingR)
+data(father.son)
+```
+
+UsingR 패키지는 [그림3.1]에서 소개한 Pearson의 키 데이터를 포함하는데, 아버지의 키(fheight)와 아들의 키(sheight)에 대한 기록이다.
+```{r}
+data("father.son")
+names(father.son)
+```
+
+먼저 plot()함수를 사용하여 산점도를 그려보면 다음과 같다.
+
+```{r}
+plot(sheight~fheight, data = father.son, pch = 19, cex = 0.5,
+     xlab = "father's height (inches)", ylab = "son's height (inches)")
+```
+
+데이터의 갯수가 1078개여서 cex(디폴트는 1)를 사용하여 관측값의 크기를 줄이는 효과를 보여주었고, pch는 관측값의 모양을 $\cdot$ 으로 나타낸다.
+
+반응변수 sheight와 설명변수 fheight를 갖는 단순선형회귀모형을 적합하기 위해 lm()함수를 사용하기로 한다. 기본 문법은 lm(y ~ x, data)로 y는 반응변수, x는 설명변수를 나타내며 data 는 이 변수들이 포함되어 있는 데이터세트를 나타낸다.
+
+```{r}
+lm.fit <- lm(sheight ~ fheight, data = father.son)
+summary(lm.fit)
+```
+
+단순선형회귀모형의 결과는 lm.fit에 저장했는데, 이 값을 프린트 하면 일부 기본적인 정보가 출력된다. 위 프로그래밍처럼 summary()함수를 사용하면 좀 더 상세한 정보를 얻을 수 있으며, 회귀계수에 대한 추정값과 표준 오차, 결정계수 $R^{2}$과 $F-$통계량 등이 제공된다. 그 밖에 lm.fit은 list형태로 단순선형회귀모형의 결과들을 저장하고 있는데, 이와 관련한 정보를 알아보기 위하여 names()함수를 사용해 보면 다음과 같다. 예를 들어 lm.fit$coefficients를 사용하여 회귀계수에 대한 추정값을 볼 수 있다.
+
+```{r}
+names(lm.fit)
+lm.fit$coefficients
+lm.fit$terms
+```
+
+[그림 3.1]과 같이 산점도에 회귀식을 함께 그리고 싶은 경우에는 다음과 같이 실행할 수 있다.
+
+```{r}
+plot(sheight~fheight, data = father.son, pch = 19, cex = 0.5,
+     xlab = "father's height (inches)", ylab = "son's height (inches)")
+beta_coef = lm.fit$coefficients
+abline(beta_coef, col = "blue", lwd = 2)
+```
+
+단순선형모형 lm.fit에 대한 분산분석표를 얻기 위해서는 anova()함수를 사용한다.
+
+```{r}
+anova(lm.fit)
+```
+
+단순선형모형이 유의수준 0.1%에서도 매우 유의함을 알 수 있다.
+
+
+## 연습문제
+
+### 3.1 
+동일한 기계들의 정비기록 (X = 기계의 사용연도, 단위 : 년), (Y = 정비비용, 단위 : 1,000원)
+
+```{r}
+x_0 = c(rep(1, 14)) ; x_1 = c(3, 1, 5, 8, 1, 4, 2, 6, 9, 3, 5, 7, 2, 6)
+y = c(39, 24, 115, 105, 50, 86, 67, 90, 140, 112, 70, 186, 43, 126)
+n = length(x_0) ; X = cbind(x_0, x_1)
+```
+
+#### 3.1 - (1) 
+이 데이터의 산점도를 그리시오.
+```{r}
+plot(x_1, y, pch = 19, cex = 0.7,
+     xlab = "사용연도 X (단위 : 년)", ylab = "정비비용 Y (단위 : 1,000원원)")
+```
+
+#### 3.1 - (2)
+최소제곱법에 의한 회귀직선을 적합시키시오.
+
+```{r}
+y_mean = sum(y) / n ; x_mean = sum(x_1) / n
+S_xx = sum((x_1 - x_mean)^{2})
+S_xy = sum((x_1 - x_mean) * (y - y_mean))
+S_yy = sum((y - y_mean)^{2})
+beta_1_hat = S_xy / S_xx ; beta_0_hat = y_mean - beta_1_hat * x_mean
+beta_0_hat ; beta_1_hat
+
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y ; beta_hat
+```
+
+#### 3.1 - (3)
+추정값의 표준오차 $s_{y \cdot x}$를 구하시오.
+
+```{r}
+y_hat = beta_0_hat * x_0 + beta_1_hat * x_1
+s_yx_squared = sum((y - y_hat)^{2}) / (n-2) ; s_yx_squared
+s_yx = sqrt(s_yx_squared) ; s_yx
+```
+
+#### 3.1 - (4) 
+결정계수와 상관계수를 구하시오,
+
+```{r}
+SST = sum((y - y_mean)^{2}) ; SSE = sum((y - y_hat)^{2}) ; SSR = SST - SSE
+r_squared = SSR / SST ; r_squared
+r = sqrt(r_squared) ; r
+```
+
+#### 3.1 - (5) 
+분산분석표를 작성하고 회귀직선의 유의 여부를 검정하시오(유의 수준 $\alpha = 0.05$ 사용)
+
+```{r}
+# remove.packages("glue")
+# install.packages("glue")
+library(glue)
+df_SSR = 1 ; df_SSE = n - 2 ; MSR = SSR / df_SSR ; MSE = SSE /df_SSE
+F_0 = MSR / MSE ; F_alpha = qf(0.05, df_SSR, df_SSE, lower.tail = FALSE)
+print(glue("SST = {SST}, SSR = {SSR}, SSE = {SSE}"))
+print(glue("MSR = {MSR}, MSE = {MSE}, F_0 = {F_0}, F_alpha = {F_alpha}"))
+```
+
+#### 3.1 - (6)
+사용연도가 4년인 기계의 평균 정비비용은 어느 정도인가를 추정하시오.
+
+```{r}
+y_hat.4 = beta_0_hat + beta_1_hat * 4 ; y_hat.4
+```
+
+#### 3.1 - (7)
+잔차 $e_i = y_i - \hat{y}_i$를 구하고 잔차의 합이 0임을 보이시오.
+
+```{r}
+e = y - y_hat ; e
+e_sum = sum(y - y_hat) ; e_sum
+```
+
+#### 3.1 - (8), (9)
+잔차들의 $x_i$에 대한 가중합 $\sum x_i e_i$와 잔차들의 $\hat{y}_i$에 대한 가중합 $\sum \hat{y}_i e_i$ 를 구하시오.
+
+```{r}
+x_e_sum = sum(x_1 * e) ; x_e_sum
+y_hat_e_sum = sum(y_hat * e) ; y_hat_e_sum
+```
+
+#### 3.1 - (10)
+두 변수 $X, Y$를 표준화된 변수로 고친 후 회귀직선을 적합시키고, 그 회귀계수가 두 변수 X,Y간의 상관계수와 같음을 밝히시오.
+
+```{r}
+xbar = x_mean ; ybar = y_mean ; 
+s_x_squared = sum((x_1 - xbar)^{2}) / (n-1) ; s_y_squared = sum((y - ybar)^{2}) / (n-1)
+s_x = sqrt(s_x_squared) ; s_y = sqrt(s_y_squared)
+
+x_centered =(x_1 - xbar) / s_x ; y_centered = (y - ybar) / s_y
+
+beta_1_hat_centered = sum((x_centered) * (y_centered)) / sum((x_centered)^{2})
+beta_1_hat_centered ; r
+```
+
+
+### 3.2
+자동차의 무게와 필요한 에너지량
+
+#### 3.2 - (1)
+$X$에 대한 $Y$의 회귀직선을 최소제곱법에 의하여 구하시오. 데이터의 산점도를 그리고 추정한 회귀직선을 산점도 위에 그리시오.
+
+```{r}
+library(glue)
+x_0 = c(rep(1, 9)) ; x_1 = c(0.9, 1.3, 2.1, 2.5, 2.4, 1.7, 0.7, 1.2, 1.6)
+y = c(2.0, 2.6, 4.3, 5.8, 5.1, 3.2, 1.8, 2.3, 3.0) ; X = cbind(x_0, x_1)
+n = length(x_1) ; xbar = sum(x_1) / n ; ybar = sum(y) / n
+S_xx = sum((x_1 - xbar)^{2}) ; S_xy = sum((x_1 - xbar)*(y - ybar))
+S_yy = sum((y - ybar)^{2})
+
+beta_1_hat = S_xy / S_xx ; beta_0_hat = ybar - beta_1_hat * xbar
+beta_hat = c(beta_0_hat, beta_1_hat)
+print(glue("beta_0_hat = {beta_0_hat}, beta_1_hat = {beta_1_hat}"))
+
+plot(x_1, y, pch = 19, cex = 0.7,
+     xlab = "무게 X (단위 : 1,000kg)", ylab = "에너지 소모량 Y (단위 : 1,000Btu)" )
+abline(coef = beta_hat, lwd = 2, col = 'blue')
+```
+
+#### 3.2 - (2)
+분산분석표를 작성하고 회귀직선의 유의여부를 유의수준 5%에서 검정하시오.
+
+```{r}
+y_hat = X %*% beta_hat ; y_hat
+# y_hat_test = beta_0_hat * x_0 + beta_1_hat * x_1 ; y_hat_test
+SST = sum((y-ybar)^{2}) ; SSE = sum((y-y_hat)^{2}) ; SSR = SST - SSE
+print(glue("SST = {SST}, SSE = {SSE}, SSR = {SSR}"))
+
+df_SSR = 1 ; df_SSE = n - 2 ; MSR = SSR/df_SSR ; MSE = SSE/df_SSE
+F_0 = MSR/MSE ; F_alpha = qf(0.05, df_SSR, df_SSE, lower.tail = FALSE)
+print(glue("MSR = {MSR}, MSE = {MSE}, F_0 = {F_0}, F_alpha = {F_alpha}"))
+```
+
+#### 3.2 - (3)
+무게가 3,000 kg이 되는 차량의 에너지 소모량을 예측하시오. 무게가 1,000kg이 되는 차량의 에너지 소모량의 몇 배인가?
+
+```{r}
+y_hat_3000 = c(1, 3000) %*% beta_hat ; y_hat_3000
+y_hat_1000 = c(1, 1000) %*% beta_hat ; y_hat_1000
+ratio = y_hat_3000 / y_hat_1000 ; ratio
+```
+
+#### 3.2 - (4)
+원점을 지나는 회귀직선을 구하시오.
+
+```{r}
+beta_1_hat_origin = sum(x_1 * y) / sum((x_1)^{2}) ; beta_1_hat_origin
+```
+
+#### 3.2 - (5)
+원점을 지나는 회귀직선의 결정계수를 구하시오.
+
+```{r}
+y_hat_origin = x_1 * beta_1_hat_origin
+SST_origin = sum((y)^{2}) ; SSR_origin = sum((y_hat_origin)^{2}) 
+r_squared_origin = SSR_origin / SST_origin ; r_squared_origin
+```
+
+#### 3.2 - (6)
+오차항의 분산이 같지 않다는 것이 밝혀지고 $Var(\epsilon_i) = k x^{2}_i$ 으로 $x^{2}_i$의 크기에 분산이 비례한다면 가중회귀를 사용하여야 한다. 가중최소제곱법에 의하여 가중회귀직선을 구하고 회귀변동(SSR)을 구하시오.
+
+```{r}
+w = 1/(x_1)^{2} ; xbar_w = sum(w * x_1) / sum(w) ; ybar_w = sum(w * y) / sum(w)
+
+beta_1_hat_w = sum(w * (x_1 - xbar_w) * (y - ybar_w)) / sum(w * (x_1 - xbar_w)^{2})
+beta_0_hat_w = ybar_w - beta_1_hat_w * xbar_w
+
+print(glue("가중회귀직선 : y_hat_w = {beta_0_hat_w} + {beta_1_hat_w} x"))
+
+beta_hat_w = c(beta_0_hat_w, beta_1_hat_w)
+y_hat_w = X %*% beta_hat_w
+
+SSR_w = sum((y_hat_w - ybar)^{2}) ; SSR_w
+```
+
+### 3.4
+
+#### 3.4 - (2), (3)
+
+```{r}
+beta_1_hat = 9/16 ; beta_0_hat = 73/16
+SSR = 810/16 ; SSE = 83.2 - SSR ; SSR ; SSE
+MSR = SSR/1 ; MSE = SSE/18 ; MSR ; MSE
+F_0 = MSR / MSE ; F_alpha = qf(0.05, 1, 18, lower.tail = FALSE) ; F_0 ; F_alpha
+
+r = 90 / sqrt(160 * 83.2) ; r
+```
