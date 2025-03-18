@@ -333,3 +333,75 @@ F_0 = MSR / MSE ; F_alpha = qf(0.05, 1, 18, lower.tail = FALSE) ; F_0 ; F_alpha
 
 r = 90 / sqrt(160 * 83.2) ; r
 ```
+
+### 3.10
+$\textbf{아마존 강 수위 문제}$
+아마존 상류지역의 도로 건설 이전과 이후의 아마존강 최고 수위와 최저 수위 기록
+아마존 상류지역의 삼림파괴가 아마존 유역의 강 수위에 변화를 일으켰는지 분석하고자 한다.
+우리의 관심은 시간에 따른 아마존 강 수위 변화여부이다.
+
+```{r}
+x_0 = c(rep(1, 17)) ; year <- seq(from = 1962, to = 1978)
+high = c(25.82, 25.35, 24.29, 24.05, 24.89, 25.35, 25.23, 25.06, 27.13,
+        27.36, 26.65, 27.13, 27.49, 27.08, 27.51, 27.54, 26.21)
+low = c(18.24, 16.50, 20.26, 20.97, 19.43, 19.31, 20.85, 19.54, 20.49,
+        21.91, 22.51, 18.81, 19.42, 19.10, 18.80, 18.80, 17.57)
+
+
+amazon = data.frame(year, high, low)
+
+```
+
+#### 3.10 - (1)
+High와 Year, Low와 Year, 그리고 High와 Low에 대해 산점도를 그리시오.
+
+```{r}
+## High와 Year 산점도
+plot(year, high, xlab = "Year", ylab = "High(m)",main = "High와 Year 산점도", pch = 5, lwd = 2 )
+
+## Low와 Year 산점도
+plot(year, low, xlab = "Year", ylab = "Low(m)",main = "Low와 Year 산점도", pch = 5, lwd = 2 )
+
+## High와 Low산점도
+plot(low, high, xlab = "Low(m)", ylab = "High(m)",main = "High와 Low 산점도", pch = 5, lwd = 2 )
+```
+
+#### 3.10 - (2)
+
+Year에 대한 High, Year에 대한 Low, 그리고 Low에 대한 High의 회귀모형을 구하시오. 3개 회귀모형의 결과를 요약하고, 각 모형별로 회귀계수의 의미를 설명하시오.
+
+```{r}
+cat("Year에 대한 High\n\n")
+High_on_Year = lm(high ~ year, data = amazon)
+High_on_Year$coefficients
+anova(High_on_Year)
+
+cat("Year에 대한 Low\n\n")
+Low_on_Year = lm(low ~ year, data = amazon)
+Low_on_Year$coefficients
+anova(Low_on_Year)
+
+cat("Low에 대한 High\n\n")
+High_on_Low = lm(high ~ low, data = amazon)
+High_on_Low$coefficients
+anova(High_on_Low)
+```
+Year에 대한 High : $\hat{\text{H}} = -330.212 + 0.181 \times year$
+
+Year에 대한 Low : $\hat{\text{L}} = 35.107 - 0.008 \times year$
+
+Low에 대한 High : $\hat{\text{H}} = 26.401 - 0.014 \times L$
+
+Year에 대한 High 모형의 경우 매년 아마존 강의 최고수위가 0.181(m)씩 증가한다는 것을 의미한다.
+
+Year에 대한 Low 모형의 경우 매년 아마존 강의 최저수위가 0.008(m)씩 감소한다는 것을 의미한다.
+
+Low에 대한 High 모형의 경우 아마존강의 최저수위 1(m)이 증가할때마다 아마존 강의 최고수위가 0.014(m)씩 감소한다는 것을 의미한다.
+
+분산분석표를 보면 Year에 대한 High 모형은 매우 유의하나 Year에 대한 Low 모형, Low에 대한 High 모형은 유의수준 0.05에서도 유의하지 않음을 알 수 있다.
+
+#### 3.10 - (3)
+
+이 자료를 근거로 우리는 삼림파괴가 아마존 강 수위의 변화를 일으킨다고 할 수 있는가? 이용가능하다면, 이러한 인과관계를 추론하는데 사용될 수 있는 추가 정보는 무엇이 있겠는가?
+
+적합된 Year에 대한 High 모형은 매우 유의하고 (유의수준 $\alpha = 0.001$), 적합된 모형을 기준으로 매년 아마존 강의 최고수위가 0.181(m)씩 증가한다는 것을 확인하였다. 그러나 이 결과만으로는 삼림파괴가 아마존 강 수위의 변화를 일으킨다고 하기는 어렵다. 1962년부터 1969년까지의 데이터는 개발 이전에 수집되었고 1970년부터 1978년까지의 데이터는 개발이후에 관측된 데이터이므로, 개발이전과 이후로 데이터를 구분해서 모형을 설정하고 적합시킨 뒤, 개발이전과 이후의 적합된 모형에서 회귀계수의 차이에 대한 검정을 하여 ($H_0 : \beta_{before} = \beta_{after}$) 설정된 유의수준 ($\alpha = 0.05, 0.01$)에서 귀무가설을 기각할 수 있다면 삼림파괴가 아마존 강 수위의 변화를 일으킨다고 할 수 있다.

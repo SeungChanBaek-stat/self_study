@@ -1,0 +1,606 @@
+---
+title: "고급회귀분석 4장"
+output: html_document
+date: "2025-03-17"
+---
+
+## 4.1 회귀선의 추정
+
+### (예 4.1)
+[표 3.1]에 있는 광고료와 판매액의 표본자료가 얻어진 모집단에 대하여 $\mu_{y \cdot x} = \beta_0 + \beta_1 x$ 가 성립된다고 가정하고 $\beta_1, \beta_0, \mu_{y \cdot x}$의 95% 신뢰구간을 구하시오.
+
+```{r}
+library("glue")
+x0 <- c(rep(1, 10)); x1 <- c(4,8,9,8,8,12,6,10,6,9); xbar <- mean(x1)
+X <- cbind(x0, x1); y <- c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20)
+n <- length(x1)
+
+dataset = data.frame(x1, y)
+
+y_on_x = lm(y ~ x1, data = dataset) ; anova_table = anova(y_on_x)
+
+beta_1_hat = y_on_x$coefficients[2] ; beta_0_hat = y_on_x$coefficients[1]
+S_xx = sum((x1 - xbar)^{2}) ; MSE = anova_table$`Mean Sq`[2]
+t_0.025_8 = qt(0.025, 8, lower.tail = FALSE)
+
+
+## beta_1 의 신뢰구간
+beta_1_CI = c(beta_1_hat - t_0.025_8 * sqrt(MSE / S_xx),
+              beta_1_hat + t_0.025_8 * sqrt(MSE / S_xx))
+
+## beta_0 의 신뢰구간
+beta_0_CI = c(beta_0_hat - t_0.025_8 * sqrt(MSE * (1/n + xbar^{2}/ S_xx)),
+              beta_0_hat + t_0.025_8 * sqrt(MSE * (1/n + xbar^{2}/ S_xx)))
+
+## x = 4일때 mu_y.x 의 신뢰구간
+mu_y.4_CI = c(beta_0_hat + beta_1_hat * 4 - t_0.025_8 * sqrt(MSE * (1/n + (4 - xbar)^{2}/ S_xx)),
+              beta_0_hat + beta_1_hat * 4 + t_0.025_8 * sqrt(MSE * (1/n + (4 - xbar)^{2}/ S_xx)))
+
+print(glue("beta_1의 신뢰구간 = ({beta_1_CI[1]},{beta_1_CI[2]})"))
+print(glue("beta_0의 신뢰구간 = ({beta_0_CI[1]},{beta_0_CI[2]})"))
+print(glue("x = 4일때 mu_y.x 의 신뢰구간 = ({mu_y.4_CI[1]},{mu_y.4_CI[2]})"))
+```
+
+```{r}
+## 95% 신뢰수준에서 mu_y.x에 대한 신뢰대와 y에 대한 신뢰구간
+plot(dataset$x1, dataset$y, xlab = "X", ylab = "Y", pch = 19, cex = 0.5, main = "95% 신뢰수준에서 y_hat에 대한 신뢰대와 y에 관한 신뢰구간(점선)")
+abline(y_on_x$coefficients, col = "blue", lwd = 2)
+```
+
+
+```{r}
+library(ggplot2)
+
+# 4부터 12까지 x1 값 생성
+newx <- data.frame(x1 = seq(4, 12, length.out = 100))
+
+# 예측값과 95% 신뢰구간 계산
+
+## mu_y.x_ci 생성함수
+mu_y.x_ci = function(x, alpha, n){
+  t_alpha_half = qt(alpha/2, n-2, lower.tail = FALSE)
+  mu_y.x_lower = beta_0_hat + beta_1_hat * x - t_alpha_half * sqrt(MSE * (1/n + (x - xbar)^{2}/ S_xx))
+  mu_y.x_upper = beta_0_hat + beta_1_hat * x + t_alpha_half * sqrt(MSE * (1/n + (x - xbar)^{2}/ S_xx))
+  
+  return(c(mu_y.x_lower, mu_y.x_upper))
+}
+
+mu_y.x_CI <- data.frame(lower = rep(0, length(newx$x1)), upper = rep(0, length(newx$x1)))
+
+for(i in 1:length(newx$x1)){
+  x = newx$x1[i]
+  mu_yx_ci = mu_y.x_ci(x, 0.05, n)
+  # cat("mu_yx_ci = (", mu_yx_ci[1], mu_yx_ci[2], ")")
+  mu_y.x_CI$lower[i] = mu_yx_ci[1]
+  # cat("lower = ", mu_y.x_CI$lower[i] )
+  mu_y.x_CI$upper[i] = mu_yx_ci[2]
+  # cat("upper = ", mu_y.x_CI$upper[i] )
+  # cat("\n")
+}
+
+mu_y.x_CI$lower
+
+
+# 개별적인 y값의 예측구간
+
+## y_hat_s_ci 생성함수
+
+y_hat_s_ci = function(x, alpha, n){
+  t_alpha_half = qt(alpha/2, n-2, lower.tail = FALSE)
+  y_hat_s_ci_lower = beta_0_hat + beta_1_hat * x - t_alpha_half * sqrt(MSE * (1 + 1/n + (x - xbar)^{2}/ S_xx))
+  y_hat_s_ci_upper = beta_0_hat + beta_1_hat * x + t_alpha_half * sqrt(MSE * (1 + 1/n + (x - xbar)^{2}/ S_xx))
+  
+  return(c(y_hat_s_ci_lower, y_hat_s_ci_upper))
+}
+
+y_hat_s_CI <- data.frame(lower = rep(0, length(newx$x1)), upper = rep(0, length(newx$x1)))
+
+for(i in 1:length(newx$x1)){
+  x = newx$x1[i]
+  y_hat_s_ci_ = y_hat_s_ci(x, 0.05, n)
+  # cat("y_hat_s_ci = (", y_hat_s_ci_[1], y_hat_s_ci_[2], ")")
+  y_hat_s_CI$lower[i] = y_hat_s_ci_[1]
+  # cat("lower = ", y_hat_s_CI$lower[i] )
+  y_hat_s_CI$upper[i] = y_hat_s_ci_[2]
+  # cat("upper = ", y_hat_s_CI$upper[i] )
+  # cat("\n")
+}
+
+
+
+# newx와 mu_y.x_CI를 하나의 데이터프레임으로 결합 (x1, lower, upper)
+mu_y.x_CI_data <- data.frame(
+  x1 = newx$x1,
+  lower = mu_y.x_CI$lower,
+  upper = mu_y.x_CI$upper
+)
+
+# newx와 y_hat_s_CI를 하나의 데이터프레임으로 결합 (x1, lower, upper)
+y_hat_s_CI_data <- data.frame(
+  x1 = newx$x1,
+  lower = y_hat_s_CI$lower,
+  upper = y_hat_s_CI$upper
+)
+
+# # ggplot을 이용한 그래프 그리기
+# ggplot(dataset, aes(x = x1, y = y)) +
+#   geom_point(shape = 19, size = 1) +  # 데이터 포인트
+#   geom_abline(intercept = y_on_x$coefficients[1],
+#               slope = y_on_x$coefficients[2],
+#               color = "blue", size = 1) +  # 회귀선
+#   geom_ribbon(data = mu_y.x_CI_data,
+#               aes(x = x1, ymin = lower, ymax = upper),
+#               fill = "lightblue", alpha = 0.5, inherit.aes = FALSE) +  # x의 값에 대한 y의 기댓값 신뢰구간 영역
+#   geom_ribbon(data = y_hat_s_CI_data,
+#               aes(x = x1, ymin = lower, ymax = upper),
+#               fill = "lightgreen", alpha = 0.2, inherit.aes = FALSE) +  # 개별적인 y값의 신뢰구간 영역
+#   labs(title = "95% 신뢰수준에서 y_hat에 대한 신뢰대와 y에 관한 신뢰구간(점선)",
+#        x = "X", y = "Y")
+# ```
+
+ggplot() +
+  # 데이터 포인트: "Data" 라벨로 지정
+  geom_point(data = dataset, aes(x = x1, y = y, color = "데이터"), shape = 19, size = 1) +
+  # 회귀선: "Regression line" 라벨로 지정
+  geom_abline(aes(intercept = y_on_x$coefficients[1], 
+                  slope = y_on_x$coefficients[2],
+                  color = "회귀직선"), size = 1) +
+  # mu_y.x 신뢰구간: "mu_y.x CI" 라벨로 지정
+  geom_ribbon(data = mu_y.x_CI_data,
+              aes(x = x1, ymin = lower, ymax = upper, fill = "x의 값에 대한 y의 기댓값 신뢰구간"),
+              alpha = 0.5, inherit.aes = FALSE) +
+  # 개별 y값 신뢰구간: "y_hat CI" 라벨로 지정
+  geom_ribbon(data = y_hat_s_CI_data,
+              aes(x = x1, ymin = lower, ymax = upper, fill = "개별적인 y의 예측값 신뢰구간"),
+              alpha = 0.2, inherit.aes = FALSE) +
+  # color legend 설정
+  scale_color_manual(name = "Line",
+                     values = c("데이터" = "black", "회귀직선" = "blue")) +
+  # fill legend 설정
+  scale_fill_manual(name = "Confidence Interval",
+                    values = c("x의 값에 대한 y의 기댓값 신뢰구간" = "lightblue", "개별적인 y의 예측값 신뢰구간" = "lightgreen")) +
+  labs(title = "95% 신뢰수준에서 y_hat에 대한 신뢰대와 y에 관한 신뢰구간",
+       x = "X", y = "Y")
+```
+
+## 4.4 모형의 타당성
+
+### (예 4.4)
+
+```{r}
+y1 = c(28, 112, 160, 143, 156, 124) ; y2 = c(42, 136, 150, 161, 124, 104)
+x = c(75, 100, 125, 150, 175, 200) ; x_ = rep(x, 2) ; y_ = c(y1, y2)
+
+bank_data = data.frame(x_, y_)
+y_on_x = lm(y_ ~ x_, data = bank_data)
+anova_table = anova(y_on_x)
+
+# ggplot을 이용한 그래프 그리기
+ggplot(bank_data, aes(x = x_, y = y_)) +
+  geom_point(shape = 19, size = 3) +  # 데이터 포인트
+  geom_abline(intercept = y_on_x$coefficients[1],
+              slope = y_on_x$coefficients[2],
+              color = "blue", size = 1) +  # 회귀선
+  labs(title = "은행자료에서 추정된 회귀모형",
+       x = "X", y = "Y")
+
+## 적합결여검정
+n = length(x_) ; k = length(x)
+ybar_k = c(rep(0, 6))
+for (i in 1:length(x)){
+  ybar_k[i] = (y1[i] + y2[i])/2
+}
+ybar_k
+SSE = anova_table$`Sum Sq`[2]
+SSPE = sum((y1 - ybar_k)^{2}) + sum((y2 - ybar_k)^{2})
+SSLF = SSE - SSPE
+
+F_0 = (SSLF/(k-2)) / (SSPE/(n-k)) ; F_0
+F_alpha = qf(0.05,k-2,n-k, lower.tail = FALSE) ; F_alpha
+```
+
+## 4.6 R 실습
+
+$\textbf{아마존 강 수위 문제}$
+3장 연습문제 10번에 대하여 단순회귀모형을 가정하고 이를 추론해 보기로 한다.
+
+`lm()`함수를 사용하여 반응변수 `High`와 설명변수 `Year`에 대한 단순선형회귀모형을 적합할수 있다. 기본 문법은 `lm(y~x, data)`이다. 이때 `y`는 반응변수, `x`는 설명변수를 가리키며 `data`는 두 변수의 정보가 포함된 자료를 가리킨다.
+
+```{r}
+amazon = read.csv("amazon.csv")
+lm.fit = lm(High ~ Year, data = amazon)
+lm.fit
+```
+
+이 결과로부터 해가 지날수록 아마존 강의 최고 수위는 약 0.1809 미터씩 높아지고 있음을 알 수 있다. 회귀계수에 대한 유의확률값과 표준오차와 결정계수, 그리고 분산분석표의 $F-$값 등은 `summary()`함수를 사용하여 구할 수 있다.
+
+```{r}
+summary(lm.fit)
+```
+
+각 회귀계수 추정값에 대한 신뢰구간을 얻기 위해 `confint()`함수를 사용한다.
+
+```{r}
+confint(lm.fit)
+```
+
+$\mu_{y\cdot x}$에 대한 신뢰구간을 얻기 위해서는 `predict()`함수를 사용할 수 있다. 예를 들어, `Year`가 1970인 경우 $\mu_{y\cdot x}$의 95% 신뢰구간은 다음과 같이 구할 수 있다.
+
+```{r}
+predict(lm.fit, data.frame(Year = 1970), interval = "confidence")
+```
+
+주어진 $x$에 대하여 $y$의 기대값인 $\mu_{y\cdot x}$ 대신에 하나의 에측값 $y$에 대한 신뢰구간은 `interval = "prediction"`으로 하여 `predict()`함수로부터 구할 수 있다.
+
+```{r}
+predict(lm.fit, data.frame(Year = 1970), interval = "prediction")
+```
+
+여기서 (Year = 1970)에서 예측한 평균 반응과 하나의 예측값에 대한 추정값은 26.12588으로 동일하지만, 개별적인 예측값에 대한 신뢰구간이 더 넓어지는 것을 알 수 있다.
+
+한편, `residuals`함수를 사용하여 잔차를 구하고, 이 함수를 이용하여 설명변수$x$와 적합값$\hat{y}$에 대한 잔차를 그래프로 나타낼 수 있다. 잔차를 그린 후 0을 중심으로 랜덤하게 나타나는 것인지 확인하기 위해 `scatter.smooth()`함수를 사용하여 그려 보기로 한다. 화면에 2개의 그래프를 보여주기 위해 `par()`함수를 사용하여 화면을 먼저 분할하기로 한다. 예를 들어, `par(mfrow = c(1,2))`를 입력하면 화면이 $1 \times 2$격자로 분할된다.
+
+```{r}
+par(mfrow = c(1,2))
+scatter.smooth(x = 1:length(amazon$Year), y= residuals(lm.fit),
+               xlab = "Year", ylab = "Residuals")
+scatter.smooth(x = predict(lm.fit), y= residuals(lm.fit),
+               xlab = expression(hat(y)), ylab = "Residuals")
+```
+
+설명변수 `Year`에 대한 잔차그림은 시간이 흐름에 따라 잔차의 모양을 보여주는 것으로, 자료의 갯수가 작아 뚜렷하진 않지만 어떤 일정한 주기(cycle)를 가지고 있는 것으로 의심이 된다. 이를 알아보기 위해 오차에 일차자기상관계수의 존재 여부를 검정하는 Durbin-Watson 검정을 시행해보면 다음과 같다. 이를 위해서 간단히 `car`패키지의 `dwt` 함수를 사용해보기로 한다.
+
+```{r}
+# install.packages("car")
+library(car)
+dwt(lm.fit)
+```
+
+위 결과로부터 $\hat{\rho} = 0.3$이고, Durbin-Watson 통계량은 $d \approx 1.05$ 임을 알 수 있으며, 유의수준 5%에서 귀무가설 $H_0 : \rho = 0$ 을 기각하고, 오차항 간에 양의 일차자기상관이 존재한다고 할 수 있다.
+
+(예 4.4)에서 살펴본 적합결여검정을 실습해보도록 한다. 먼저, $(x,y)$를 아래와 같이 입력한 후, 단순 선형회귀모형 적합에 대한 분산분석 결과를 다음과 같이 살펴보도록 하자.
+
+```{r}
+x = rep(c(75, 100, 125, 150, 175, 200), 2)
+y = c(c(28, 112, 160, 143, 156, 124), c(42, 136, 150, 161, 124, 104))
+anova(lm(y ~ x))
+```
+
+이때, $SSE = 15630.6$임을 알 수 있다. 이 잔차의 크기가 모형의 가정이 적절하지 않은 것 때문인지 객관적으로 판단하기 위해서 $x$의 반복이 있는 경우 적합결여검정을 통해 알 수 있다. 위 자료는 같은 $x$에 대한 $y$관측값이 존재한다. 따라서 오차제곱합으로부터 순오차제곱합($SSPE$)을 구해볼 수 있다. 이를 위해 다음과 같이 연속적인 설명변수 $x$를 범주형 변수 (`factor(x)`)로 지정한 후 모형을 적합하면 그 때의 잔차제곱합이 곧 순오차제곱합이 됨을 알 수 있다.
+
+```{r}
+anova(lm(y ~ factor(x)))
+
+SSLF = 15630.6 - 1310
+MSLF = SSLF / (6-2)
+F0 = MSLF / 218.3 ; F0
+pvalue = 1 - pf(F0, 4, 6) ; pvalue
+```
+
+
+## 연습문제
+
+### 4.3
+
+```{r}
+x_0 = c(rep(1, 14)) ; x_1 = c(3, 1, 5, 8, 1, 4, 2, 6, 9, 3, 5, 7, 2, 6)
+y = c(39, 24, 115, 105, 50, 86, 67, 90, 140, 112, 70, 186, 43, 126)
+n = length(x_0) ; X = cbind(x_0, x_1)
+xbar = mean(x_1) ; xbar
+
+dataset = data.frame(x_1, y)
+lm.fit = lm(y ~ x_1, dataset)
+
+S_xx = sum((x_1 - mean(x_1))^{2})
+summary(lm.fit)
+anova_table = anova(lm.fit)
+t_alpha = qt(0.05, n-2, lower.tail = FALSE)
+anova_table = anova(lm.fit)
+anova_table
+MSE = anova_table$`Mean Sq`[2]
+## beta_1_hat
+
+a = lm.fit$coefficients[1]
+print(glue("({lm.fit$coefficients[2] - t_alpha * sqrt(MSE / S_xx)}, {lm.fit$coefficients[2] + t_alpha * sqrt(MSE / S_xx)})"))
+
+print(glue("({lm.fit$coefficients[1] - t_alpha * sqrt(MSE*(1/n + (xbar^{2}/S_xx)))}, {lm.fit$coefficients[1] + t_alpha * sqrt(MSE*(1/n + (xbar^{2}/S_xx) ))})"))
+
+print(glue("({lm.fit$coefficients[1] + lm.fit$coefficients[2] * 10  - t_alpha * sqrt(MSE*(1/n + ((10 - xbar)^{2}/S_xx)))},
+           {lm.fit$coefficients[1] + lm.fit$coefficients[2] * 10  + t_alpha * sqrt(MSE*(1/n + ((10 - xbar)^{2}/S_xx)))})"))
+
+print(glue("({lm.fit$coefficients[1] + lm.fit$coefficients[2] * 10  - t_alpha * sqrt(MSE*(1 + 1/n + ((10 - xbar)^{2}/S_xx)))},
+           {lm.fit$coefficients[1] + lm.fit$coefficients[2] * 10  + t_alpha * sqrt(MSE*(1 + 1/n + ((10 - xbar)^{2}/S_xx)))})"))
+```
+
+### 4.4
+
+```{r}
+library(glue)
+
+x_0 = c(rep(1, 9)) ; x_1 = c(0.9, 1.3, 2.1, 2.5, 2.4, 1.7, 0.7, 1.2, 1.6)
+y = c(2.0, 2.6, 4.3, 5.8, 5.1, 3.2, 1.8, 2.3, 3.0) ; X = cbind(x_0, x_1)
+n = length(x_1) ; xbar = sum(x_1) / n ; ybar = sum(y) / n
+S_xx = sum((x_1 - xbar)^{2}) ; S_xy = sum((x_1 - xbar)*(y - ybar))
+S_yy = sum((y - ybar)^{2})
+
+beta_1_hat = S_xy / S_xx ; beta_0_hat = ybar - beta_1_hat * xbar
+MSE = (1/(n-2)) * (S_yy - (S_xy)^{2} / S_xx)
+
+print(glue("beta_1_hat = {beta_1_hat}, beta_0_hat = {beta_0_hat}, MSE = {MSE}"))
+```
+
+#### 4.4 - (1)
+
+```{r}
+beta_1_0 = 1 # 귀무가설
+
+t_0 = (beta_1_hat - beta_1_0)/sqrt(MSE/S_xx) ; t_0
+t_alpha = qt(0.05, n-2, lower.tail = FALSE) ; t_alpha
+```
+
+#### 4.4 - (2)
+
+```{r}
+y_hat_0 = 3.3 # 귀무가설
+
+y_hat = beta_0_hat + beta_1_hat * 2
+
+t_0 = (y_hat - y_hat_0)/sqrt(MSE*(1/n + (2-xbar)^{2}/S_xx)) ; t_0
+t_alpha = qt(0.05, n-2, lower.tail = FALSE) ; t_alpha
+```
+
+#### 4.4 - (3)
+
+```{r}
+rho_0 = 0 # 귀무가설
+
+r = S_xy / sqrt(S_xx * S_yy)
+
+t_0 = r/ sqrt((1- r^{2}) / (n-2)) ; t_0
+t_alpha = qt(0.05, n-2, lower.tail = FALSE) ; t_alpha
+```
+
+#### 4.4 - (4)
+
+```{r}
+rho_0 = 0.4 # 귀무가설
+
+Z = (1/2) * log((1+r)/(1-r)) ; EZ = (1/2) * log((1+rho_0)/(1-rho_0)) ; VarZ = 1/(n-3)
+
+Z_0 = (Z - EZ)/sqrt(VarZ) ; Z_0
+
+z_alpha = qnorm(0.05, lower.tail = FALSE) ; z_alpha
+```
+
+### 4.5
+
+#### 4.5 - (1)
+
+```{r}
+y = c(8.5, 8.4, 7.9, 8.1, 7.8, 7.6, 7.3, 7.0, 6.8, 6.7)
+x = c(0, 0, 3, 3, 6, 6, 9, 9, 12, 12)
+n = 10 ; k = 5
+
+dataset = data.frame(x,y)
+
+lm.fit = lm(y ~ x, data = dataset)
+summary(lm.fit)
+
+anova_table = anova(lm.fit)
+
+factor_anova_table = anova(lm(y ~ factor(x)))
+
+SSE = anova_table$`Sum Sq`[2]
+
+SSPE = factor_anova_table$`Sum Sq`[2]
+
+SSLF = SSE - SSPE ; SSLF
+
+F_0 =  (SSLF / (k-2))/(SSPE / (n-k)) ; F_0
+F_alpha = qf(0.05, k-2, n-k, lower.tail = FALSE) ; F_alpha
+```
+
+#### 4.5 - (2)
+
+```{r}
+beta_1_hat = lm.fit$coefficients[2]
+
+MSE = SSE / (n-2)
+S_xx = sum((x - mean(x))^{2})
+t_alpha = qt(0.025, n-2, lower.tail = FALSE)
+
+beta_1_ci_lower = beta_1_hat - t_alpha * sqrt(MSE/S_xx)
+beta_1_ci_upper = beta_1_hat + t_alpha * sqrt(MSE/S_xx)
+
+print(glue("beta_1_CI = ({beta_1_ci_lower},{beta_1_ci_upper})"))
+```
+
+### 4.6
+
+#### 4.6 - (1)
+
+```{r}
+x = c(seq(1, from = 0 , to = 9))
+y = c(120, 135, 162, 181, 215, 234, 277, 313, 374, 422)
+n = length(x)
+
+dataset = data.frame(x,y)
+
+lm.fit = lm(y ~ x, data = dataset)
+y_hat = predict(lm.fit)
+
+# y_hat_cal = lm.fit$coefficients[1] + lm.fit$coefficients[2] * x ; y_hat_cal
+
+e = y - y_hat ; e
+
+d_numerator = 0
+d_denominator = (e[1])^{2}
+for (i in 2:n){
+  temp_n = (e[i] - e[i-1])^{2}
+  temp_d = (e[i])^{2}
+  d_numerator = temp_n + d_numerator
+  d_denominator = temp_d + d_denominator
+}
+d = d_numerator/ d_denominator ; d
+
+
+
+
+```
+
+#### 4.6 - (2)
+
+```{r}
+lm.fit$coefficients[2]
+```
+
+
+### 4.8
+
+```{r}
+n = 100
+
+x = c(rep(0, n)) ; z = c(rep(0, n)) ; y = c(rep(0, n)) 
+
+
+for (i in 1:n){
+  x[i] = i/n
+  z[i] = sin(i * pi / n)
+  y[i] = cos(i * pi / n)
+}
+
+epsilon = rnorm(100, mean = 0, sd = 1)
+```
+
+#### 4.8 - (1)
+
+```{r}
+## y = beta_0 + beta_1 x + beta_2 x^{2} + epsilon 가정
+
+x_0 = c(rep(1, n)) ; x_1 = x ; x_2 = x^{2} ; X = cbind(x_0, x_1, x_2)
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y
+
+y_hat = X %*% beta_hat
+
+e = y - y_hat
+
+plot(x, e, xlab = "x", ylab = "residual", main = "x에 대한 잔차 산점도", pch = 19, cex = 0.5)
+```
+
+#### 4.8 - (2)
+
+```{r}
+## y = beta_0 + beta_1 x + beta_2 x^{2} + beta_3 x^{3} + epsilon 가정
+
+x_0 = c(rep(1, n)) ; x_1 = x ; x_2 = x^{2} ; x_3 = x^{3} ; X = cbind(x_0, x_1, x_2, x_3)
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y
+
+y_hat = X %*% beta_hat
+
+e = y - y_hat
+
+plot(x, e, xlab = "x", ylab = "residual", main = "x에 대한 잔차 산점도", pch = 19, cex = 0.5)
+```
+
+#### 4.8 - (3)
+
+```{r}
+## y = beta_0 + beta_1 x + beta_2 z + epsilon 가정
+
+x_0 = c(rep(1, n)) ; x_1 = x ; x_2 = z ; X = cbind(x_0, x_1, x_2)
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y
+
+y_hat = X %*% beta_hat
+
+e = y - y_hat
+
+plot(x, e, xlab = "x", ylab = "residual", main = "x에 대한 잔차 산점도", pch = 19, cex = 0.5)
+```
+
+### 4.11
+$\textbf{보스턴 집값 데이터 (데이터 출처 : MASS 패키지)}$
+이 데이터는 Boston 근처 지역의 지역적 특징과 주택 가격의 중앙값 등을 포함하고 있다. 데이터는 MASS 패키지 설치를 통해 Boston 데이터를 사용할 수 있다. 아래와 같이 사용가능하며 자세한 내용을 살펴볼 수 있다.
+
+```{r}
+library(MASS)
+head(Boston)
+# ?Boston
+```
+
+1인당 범죄율 `crim`을 설명변수 `x`로 하고, 주택가격의 중앙값 `medv`을 반응변수 `y`로 할때 다음에 대하여 답하시오.
+
+#### 4.11 - (1)
+선형회귀모형 $y= \beta_0 + \beta_1 x + \epsilon$을 적합하시오.
+
+```{r}
+dataset = Boston
+
+lm.fit = lm(medv ~ crim, data = dataset)
+summary(lm.fit)
+```
+
+#### 4.11 -(2)
+잔차의 산점도를 그려보고 모형의 타당성과 공분산성에 대하여 설명하시오.
+
+```{r}
+y_hat = predict(lm.fit) ; y = dataset$medv ; x = dataset$crim ; n = length(x)
+
+e = y - y_hat
+
+plot(x, e, xlab = "1인당 범죄율 crim", ylab = "잔차", main = "잔차의 산점도", pch = 19, cex = 0.5,
+     ylim = c(-15, 15), xlim = c(0,40))
+```
+
+산점도를 그려본 결과 잔차들이 0을 주변으로 대체로 산포하나 $x (crim) = 0$근처에서 잔차가 밀집되어있음을 확인할 수 있다. 명확한 확인을 위해 $x=0$ 근처를 좀 더 자세히 들여다보면
+
+```{r}
+plot(x, e, xlab = "1인당 범죄율 crim", ylab = "잔차", main = "잔차의 산점도", pch = 19, cex = 0.5,
+     ylim = c(-5, 5), xlim = c(0,1))
+```
+
+보다시피 잔차들이 0을 중심으로 거의 랜덤에 가깝게 나타나는 것을 확인할 수 있다. 즉 적합된 회귀모형은 타당하고 오차의 등분산성이 성립된다고 할 수 있다.
+
+다음은 $\hat{y}$와 잔차간의 산점도를 같이 그려놓고 비교해본 결과이다.
+```{r}
+par(mfrow = c(1,2))
+scatter.smooth(x = 1:length(dataset$crim), y= residuals(lm.fit),
+               xlab = "crim", ylab = "Residuals")
+scatter.smooth(x = predict(lm.fit), y= residuals(lm.fit),
+               xlab = expression(hat(y)), ylab = "Residuals")
+```
+
+```{r}
+scatter.smooth(x = predict(lm.fit), y= residuals(lm.fit),
+               xlab = expression(hat(y)), ylab = "Residuals", xlim = c(20,24))
+```
+
+```{r}
+scatter.smooth(x = predict(lm.fit), y= residuals(lm.fit),
+               xlab = expression(hat(y)), ylab = "Residuals", xlim = c(0,20))
+```
+보다시피 잔차들이 0을 중심으로 거의 랜덤에 가깝게 나타나는 것을 확인할 수 있다. 즉 적합된 회귀모형은 타당하고 오차의 등분산성이 성립된다고 할 수 있다.
+
+#### 4.11 - (3)
+유의수준 $\alpha = 0.1$에서 $H_0 : \beta_1 = 0.3 ~~\text{vs}~~H_1 : \beta_1 \neq 0.3$을 검정하시오.
+
+```{r}
+anova_table = anova(lm.fit)
+beta_1_hat = lm.fit$coefficients[2] ; beta_1_0 = 0.3
+S_xx = sum((x - mean(x))^{2}) ; MSE = anova_table$`Mean Sq`[2]
+t_0 = (beta_1_hat - beta_1_0) / sqrt(MSE / S_xx)
+t_alpha = qt(0.05, n-2, lower.tail = FALSE)
+
+print(glue("t_0 = {t_0}, t_alpha = {t_alpha}"))
+```
+
+즉 검정통계량 $|t_0|$ > $t_{\alpha/2}(n-2)$ 이므로 귀무가설을 기각하고 대립가설을 채택한다. 유의수준 0.1에서 $\beta_1 \neq 0.3$ 이라고 할 수 있다.
+
+#### 4.11 - (4)
+Durbin-Watson $d$ 통계량을 사용하여 $H_0 : \rho = 0 ~~\text{vs}~~H_1 : \rho > 0$을 유의수준 $\alpha = 0.05$에서 검정하시오.
+
+```{r}
+library(car)
+dwt(lm.fit)
+```
+
+여기서 Durbin-Watson 통계량 $d \approx 0.713 $임을 알 수 있으며, 유의수준 $\alpha = 0.05$에서 귀무가설을 기각하고 대립가설을 채택한다. 즉, 오차항 간에 양의 일차자기상관이 존재한다고 할 수 있다.

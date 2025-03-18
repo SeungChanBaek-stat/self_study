@@ -1,0 +1,459 @@
+---
+title: "고급회귀분석 5장"
+output: html_document
+date: "2025-03-18"
+---
+
+## 5.1 모형의 변환
+
+### (예 5.1)
+[표 3.1]에 있는 광고료와 판매액의 표본자료가 얻어진 모집단에 대하여 $\mu_{y \cdot x} = \beta_0 + \beta_1 x$ 가 성립된다고 가정하고 $\beta_1, \beta_0, \mu_{y \cdot x}$의 95% 신뢰구간을 구하시오.
+
+```{r}
+x = c(1,1,2,2,3,3,4,4,5,5) ; y = c(45,40,60,62,75,81,115,150,145,148) ; logy = log(y, base = 10)
+```
+
+```{r, echo=FALSE}
+plot(x,y, xlab = "교육기간 (단위 : 주)x", ylab = "판매 성적 (계약건수)y",
+     main = "보험 판매원 교육 자료", pch = 19, cex = 0.5)
+```
+
+```{r, echo = FALSE}
+## y = alpha_0 * alpha_1^{x} * epsilon
+
+X = data.frame(x, logy)
+
+lm.fit = lm(logy ~ x, data = X)
+
+summary(lm.fit)
+
+beta_0_hat = lm.fit$coefficients[1] ; beta_1_hat = lm.fit$coefficients[2] 
+
+alpha_0_hat = 10^{beta_0_hat} ; alpha_1_hat = 10^{beta_1_hat}
+
+plot(x,y, xlab = "교육기간 (단위 : 주)x", ylab = "판매 성적 (계약건수)y",
+     main = "보험 판매원 교육 자료", pch = 19, cex = 0.5)
+
+curve(alpha_0_hat * alpha_1_hat^{x} , from = 1, to = 5, n = 101, add = TRUE, col = "lightblue")
+```
+
+
+```{r, echo = FALSE}
+# 필요한 패키지 로드
+library(ggplot2)
+
+# 데이터 입력 및 로그 변환
+x <- c(1,1,2,2,3,3,4,4,5,5)
+y <- c(45,40,60,62,75,81,115,150,145,148)
+logy <- log(y)
+
+# 선형 모형 적합
+lm.fit <- lm(logy ~ x)
+beta0_hat <- coef(lm.fit)[1]
+beta1_hat <- coef(lm.fit)[2]
+alpha0_hat <- exp(beta0_hat)
+alpha1_hat <- exp(beta1_hat)
+
+# 데이터 프레임 생성
+df <- data.frame(x = x, y = y)
+
+# 적합 모형 함수를 정의 (원래 모형: y = alpha0 * alpha1^x)
+fitted_func <- function(x) { alpha0_hat * alpha1_hat^x }
+
+# ggplot으로 산점도 및 적합 곡선 그리기
+ggplot(df, aes(x = x, y = y)) +
+  geom_point(size = 2) +
+  stat_function(fun = fitted_func, color = "blue", xlim = c(1, 5)) +
+  labs(x = "교육기간 (단위 : 주)", y = "판매 성적 (계약건수)y",
+       title = "보험 판매원 교육 자료") +
+  theme_minimal()
+```
+
+```{r}
+beta_0_hat ; beta_1_hat
+alpha_0_hat ; alpha_1_hat
+```
+
+```{r}
+plot(x,logy, xlab = "x", ylab = "logy",
+     main = "변환된 회귀모형", pch = 19, cex = 0.5)
+
+abline(coef = c(beta_0_hat, beta_1_hat), col = "lightblue")
+```
+
+```{r}
+library(glue)
+X_before = data.frame(x,y) ; X_after = data.frame(x,logy)
+lm.fit_before = lm(y ~ x, data = X_before)
+anova_before = anova(lm.fit_before)
+SST_before = sum((y - mean(y))^{2}) ; SSE_before = anova_before$`Sum Sq`[2]
+
+lm.fit_after = lm(logy ~ x, data = X_after)
+anova_after = anova(lm.fit_after)
+SST_after = sum((logy - mean(logy))^{2}) ; SSE_after = anova_after$`Sum Sq`[2]
+
+R_sq_before =1 - SSE_before / SST_before ; R_sq_after =1 - SSE_after / SST_after 
+
+print(glue("R_sq_before = {R_sq_before}, R_sq_after = {R_sq_after}"))
+```
+
+## 5.4 두 회귀선의 비교
+
+### (예 5.2)
+
+```{r, echo=FALSE}
+x1 = c(100,125,220,205,300,255,225,175,270,170,155,190,140,290,265)
+y1 = c(218,248,360,351,470,394,332,321,410,260,241,331,275,425,367)
+
+x2 = c(105,215,270,255,175,135,200,275,155,320,190,295)
+y2 = c(140,277,384,341,215,180,260,361,252,422,273,410)
+
+# x, y 축 범위 설정
+x_range <- range(c(x1, x2))
+y_range <- range(c(y1, y2))
+
+# 산점도 그리기: 생산라인1 (파란색, 원형)
+plot(x1, y1, 
+     pch = 19, col = "blue",
+     xlab = "라인속도", ylab = "소모량", 
+     xlim = c(x_range[1] - 10, x_range[2] + 10),
+     ylim = c(y_range[1] - 10, y_range[2] + 10),
+     main = "생산라인별 산점도")
+
+# 산점도에 추가: 생산라인2 (빨간색, 삼각형)
+points(x2, y2, 
+       pch = 17, col = "red")
+
+# 범례 추가
+legend("topleft", 
+       legend = c("생산라인 1", "생산라인 2"),
+       col = c("blue", "red"), 
+       pch = c(19, 17))
+```
+
+```{r, echo=FALSE}
+# 데이터 프레임 생성 (각 데이터에 생산라인 구분 변수 추가)
+df1 <- data.frame(라인속도 = x1, 소모량 = y1, 생산라인 = "생산라인 1")
+df2 <- data.frame(라인속도 = x2, 소모량 = y2, 생산라인 = "생산라인 2")
+df <- rbind(df1, df2)
+df$생산라인 <- as.factor(df$생산라인)
+
+# ggplot으로 산점도 그리기
+ggplot(df, aes(x = 라인속도, y = 소모량, color = 생산라인, shape = 생산라인)) +
+  geom_point(size = 3) +
+  labs(title = "생산라인별 산점도", x = "라인속도", y = "소모량") +
+  theme_minimal()
+```
+
+```{r}
+x1 = c(100,125,220,205,300,255,225,175,270,170,155,190,140,290,265)
+y1 = c(218,248,360,351,470,394,332,321,410,260,241,331,275,425,367)
+
+x2 = c(105,215,270,255,175,135,200,275,155,320,190,295)
+y2 = c(140,277,384,341,215,180,260,361,252,422,273,410)
+
+## Full model
+
+full_model.1 = lm(y1 ~ x1) ; full_model.2 = lm(y2 ~ x2)
+anova.1 = anova(full_model.1) ; anova.2 = anova(full_model.2)
+
+coef(full_model.1) ; coef(full_model.2)
+anova.1 ; anova.2
+
+SSE.1 = anova.1$`Sum Sq`[2] ; SSE.2 = anova.2$`Sum Sq`[2] 
+SSE.F = SSE.1 + SSE.2 ; df.F = anova.1$Df[2] + anova.2$Df[2]
+```
+
+```{r}
+## Reduced model
+X = c(x1, x2) ; Y = c(y1, y2)
+reduced_model = lm(Y ~ X)
+anova.reduced = anova(reduced_model)
+
+coef(reduced_model)
+anova.reduced
+
+SSE.R = anova.reduced$`Sum Sq`[2]
+df.R = anova.reduced$Df[2]
+
+F_0 = ((SSE.R - SSE.F) / (df.R - df.F)) / (SSE.F / df.F)
+F_alpha = qf(0.05, df.R - df.F, df.F, lower.tail = FALSE)
+
+print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+```
+
+### (예 5.3)
+
+```{r}
+beta1.1_hat = coef(full_model.1)[2] ; beta1.2_hat = coef(full_model.2)[2]
+
+MSE.F = SSE.F / (df.F) ; S_xx.1 = sum((x1 -mean(x1))^{2}) ; S_xx.2 = sum((x2 -mean(x2))^{2})
+
+var_hat = MSE.F * ((1/S_xx.1) + (1/S_xx.2))
+
+t_0 = (beta1.1_hat - beta1.2_hat) / sqrt(var_hat)
+t_alpha = qt(0.025, df.F, lower.tail = FALSE)
+
+print(glue("t_0 = {t_0}, t_alpha = {t_alpha}"))
+```
+
+
+## 5.9 R 실습
+
+### 5.9.1 두 회귀모형의 검정
+
+$\textbf{맥주생산라인의 문제}$ [표 5.2]의 각 생산라인에서 얻어진 표본자료의 모집단에 대하여 각 두 회귀직선모형
+
+\begin{equation*}
+  y_{ij} = \beta_{0j} + \beta_{1j}x_{ij} + \epsilon_{ij} (i=1, \cdts, n_j, ~~j= 1,2)
+\end{equation*}
+
+이 성립된다고 가정하고 (예 5.2)와 (예 5.3)을 실습을 통해 풀어 보기로 한다.
+
+먼저 (예 5.1)에서 살펴본 서로 다른 자료에 대한 두 회귀모형의 동일성 검정은 `gap`패키지의 `chow.test()`를 사용할 수 있다. [표 5.2]의 자료를 생성하여 불러온 결과는 다음과 같다.
+
+```{r}
+# install.packages("gap")
+library(gap)
+
+x1 = c(100,125,220,205,300,255,225,175,270,170,155,190,140,290,265)
+y1 = c(218,248,360,351,470,394,332,321,410,260,241,331,275,425,367)
+lab1 = c(rep("a", length(x1)))
+
+x2 = c(105,215,270,255,175,135,200,275,155,320,190,295)
+y2 = c(140,277,384,341,215,180,260,361,252,422,273,410)
+lab2 = c(rep("b", length(x2)))
+
+tab5_2 = data.frame(c(x1, x2), c(y1, y2), c(lab1, lab2))
+colnames(tab5_2) = c("x", "y", "lab")
+
+head(tab5_2)
+```
+
+`chow.test()`를 사용하기 위해서는 먼저 각 생산라인별로 다음과 같이 설명변수와 반응변수를 생성한다.
+
+```{r}
+y1 <- tab5_2[which(tab5_2$lab == 'a'), 2]
+y2 <- tab5_2[which(tab5_2$lab == 'b'), 2]
+x1 <- tab5_2[which(tab5_2$lab == 'a'), 1]
+x2 <- tab5_2[which(tab5_2$lab == 'b'), 1]
+chow.test(y1, x1, y2, x2)
+```
+
+이 결과로부터 각 생산라인별 라인 속도에 대한 맥주의 평균 소모량에 관한 회귀식이 유의수준 $\alpha = 0.05$에서 동일하지 않음을 알 수 있다.
+
+### 5.9.2 두 기울기의 검정
+
+이제 (예 5.3)에서 살펴본 것처럼 기울기가 같은지 검정해 보기로 한다. 이를 위하여 서로 다른 두 자료 `data1`, `data2`에 대하여 
+
+\begin{equation*}
+  t_0 = \cfrac{\hat{\beta}_{11} - \hat{\beta}_{12}}{\sqrt{\hat{\text{Var}} (\hat{\beta}_{11} - \hat{\beta}_{12})}}
+\end{equation*}
+
+를 검정통계량으로 사용하는 유의수준 $\alpha$ 검정을 하기 위한 `slope_test(data1, data2, alpha)`함수를 작성하면 다음과 같다.
+
+```{r}
+slope_test = function(data1, data2, alpha){
+  n_1 = dim(data1)[1] ; n_2 = dim(data2)[1]
+  
+  xbar_1 = mean(data1$x) ; ybar_1 = mean(data1$y)
+  S_xx_1 = sum((data1$x - xbar_1)^{2})
+  S_xy_1 = as.numeric(t(data1$x - xbar_1) %*% (data1$y - ybar_1))
+  beta1_1 = S_xy_1 / S_xx_1
+  beta0_1 = ybar_1 - beta1_1 * xbar_1
+  yhat_1 = beta0_1 + beta1_1 * data1$x
+  SSE_1 = sum((data1$y - yhat_1)^{2})
+  
+  xbar_2 = mean(data2$x) ; ybar_2 = mean(data2$y)
+  S_xx_2 = sum((data2$x - xbar_2)^{2})
+  S_xy_2 = as.numeric(t(data2$x - xbar_2) %*% (data2$y - ybar_2))
+  beta1_2 = S_xy_2 / S_xx_2
+  beta0_2 = ybar_2 - beta1_2 * xbar_2
+  yhat_2 = beta0_2 + beta1_2 * data2$x
+  SSE_2 = sum((data2$y - yhat_2)^{2})
+  
+  SSEF = SSE_1 + SSE_2
+  df_SSEF = (n_1 - 2) + (n_2 - 2)
+  MSEF = SSEF / df_SSEF
+  
+  t_0 = (beta1_1 - beta1_2) / sqrt(MSEF * (1/S_xx_1 + 1/S_xx_2))
+  critical_value = qt(alpha/2, df = df_SSEF, lower.tail = FALSE)
+  
+  if(abs(t_0) > critical_value){
+    cat("Since |t_0| > t_", alpha/2, "(", df_SSEF, ")",
+        " reject the null hypothesis.", "\n",
+        "Here, |t_0| = ", abs(round(t_0, 3)), " and t_", alpha/2, "(", df_SSEF, ") = ",
+        round(critical_value, 3), "\n", sep = "")
+  }else{
+    cat("Since |t_0| <= t_", alpha/2, "(", df_SSEF, ")",
+        " there is not enough evidence to reject the null hypothesis.", "\n",
+        "Here, |t_0| = ", abs(round(t_0, 3)), " and t_", alpha/2, "(", df_SSEF, ") = ",
+        round(critical_value, 3), "\n", sep = "")
+  }
+}
+```
+
+이 함수를 사용하여 5.9.1 절에서 생성한 데이터로부터 두 기울기의 검정결과를 살펴 보면 (예 5.3)과 같은 결과를 얻는 것을 확인할 수 있다.
+
+```{r}
+line1 <- data.frame(x = x1, y = y1)
+line2 <- data.frame(x = x2, y = y2)
+
+slope_test(line1, line2, alpha = 0.05)
+```
+
+### 5.9.3 Box-Cox 변환에서의 $\lambda$ 결정
+
+이제 Box-Cox 변환에서 $\lambda$를 결정하는 예제를 살펴보자. 먼저 다음과 같은 단순회귀모형을 생성하도록 한다.
+
+```{r}
+set.seed(1234)
+n = 100 ; beta0 = 1 ; beta1 = 0.7
+
+e = rnorm(n, mean = 0, sd = sqrt(0.1))
+x = runif(n, min = 0, max = 5)
+y = exp(beta0 + beta1 * x + e)
+
+mydata = data.frame(x = x, y = y)
+plot(y ~ x, data = mydata)
+```
+
+$log(y)$가 단순회귀모형 $(\beta_0 = 1, \beta_1 =0.7)$의 관계를 갖는 것으로, $\lambda = 0$에서 $(x,y)$가 생성되었다. 5.1.3절에서 $\lambda$를 결정하는 방법을 소개한 것처럼 멱변환 후 $SSE_{\lambda}$를 계산하는 `SSE_lambda()`함수를 생성해 보았다.
+
+```{r}
+SSE_lambda = function(x, y, lambda){
+  
+  if (lambda == 0){
+    z_lambda = log(y) * prod(y)^{1/n}
+  }else{
+    z_lambda = (y^{lambda} - 1) / lambda * prod(y)^{(-1/n) * (lambda - 1)}
+  }
+  
+  n = length(y)
+  X = matrix(c(rep(1, n), x), n, 2)
+  H = X %*% solve(t(X) %*% X) %*% t(X)
+  I = diag(1, n)
+  
+  SSE_lambda = t(z_lambda) %*% (I - H) %*% z_lambda
+  return(SSE_lambda)
+}
+```
+
+위에서 생성한 함수를 이용하여, 일련의 lambda($\lambda$) 값에 대하여 `SSE_lambda()`함수값을 벡터화하는 함수 `vec_SSE_lambda()`를 작성하면, `lambda`를 [-2, 2]까지 0.2씩 변화시켜가며 `SSE_lambda`를 최소로 하는 최적의 lambda($\lambda$)를 찾을 수 있다.
+
+```{r}
+vec_SSE_lambda <- Vectorize(SSE_lambda, "lambda")
+lambda <- seq(-2, 2, 0.2)
+all_SSE <- vec_SSE_lambda(mydata$x, mydata$y, lambda)
+(best_lambda <- lambda[which.min(all_SSE)])
+(min_SSE <- all_SSE[which.min(all_SSE)])
+```
+
+위 결과를 보면 lambda = 0 일때 `SSE_lambda = 2159.1`로 최소가 되는 것을 알 수 있다. lambda를 [-2, 2]까지 0.2씩 변화하면서 이에 대응하는 log(SSE_lambda)값을 그려보면 다음과 같다.
+
+```{r}
+plot(lambda, log(all_SSE),
+     type = "b", lwd = 2,
+     xlab = "Lambda", ylab = "Sum of Squared Error(log-scale)")
+
+points(x = best_lambda, y = log(min_SSE),
+       col = "red", cex = 2, pch = 8)
+
+```
+
+### 더 큰 데이터셋의 경우
+
+```{r}
+set.seed(1234)
+n = 1000 ; beta0_big = 1 ; beta1_big = 4
+
+e_big = rnorm(n, mean = 0, sd = sqrt(0.1))
+x_big = runif(n, min = 0, max = 10)
+# y_big = 1 / (1 + exp(beta0_big + beta1_big * x_big + e_big))
+y_big = beta0_big + beta1_big * (1/x_big) + e_big
+
+mydata_big = data.frame(x = x_big, y = y_big)
+plot(y_big ~ x_big, data = mydata_big)
+```
+
+```{r}
+SSE_lambda_big = function(x, y, lambda){
+  
+  if (lambda == 0){
+    z_lambda = log(y) * prod(y)^(1/n)
+  }else{
+    z_lambda = (y^{lambda} - 1) / lambda * prod(y)^{(-1/n) * (lambda - 1)}
+  }
+  
+  n = length(y)
+  X = matrix(c(rep(1, n), x), n, 2)
+  H = X %*% solve(t(X) %*% X ) %*% t(X)
+  I = diag(1, n)
+  
+  SSE_lambda = t(z_lambda) %*% (I - H) %*% z_lambda
+  return(SSE_lambda)
+}
+
+vec_SSE_lambda_big <- Vectorize(SSE_lambda_big, "lambda")
+lambda_big <- seq(-3, 3, 0.2)
+all_SSE_big <- vec_SSE_lambda_big(mydata_big$x, mydata_big$y, lambda_big)
+(best_lambda_big <- lambda_big[which.min(all_SSE_big)])
+(min_SSE_big <- all_SSE_big[which.min(all_SSE_big)])
+```
+
+```{r}
+plot(lambda_big, log(all_SSE_big),
+     type = "b", lwd = 2,
+     xlab = "Lambda", ylab = "Sum of Squared Error(log-scale)")
+
+points(x = best_lambda_big, y = log(min_SSE_big),
+       col = "red", cex = 3, pch = 19)
+```
+
+## 연습문제
+
+### 5.1
+
+```{r}
+x = c(6.4,16.1,42.1,2.1,30.7,32.1,7.2,3.4,20.8,1.5)
+y = c(1.7,2.7,4.9,0.3,3.9,4.1,1.2,0.5,3.3,0.2)
+
+plot(x, y, xlab = "구매 상품의 금액 x (단위 : 천원)", ylab = "소요되는 시간 y (단위 : 분)",
+     main = "슈퍼마켓 데이터", pch = 19, cex = 0.4)
+```
+
+```{r}
+S_xx = sum((x-mean(x))^{2}) ; S_xy = sum( (x-mean(x))*(y-mean(y)) ) ; S_yy = sum((y-mean(y))^{2})
+beta1_hat = S_xy / S_xx ; beta0_hat = mean(y) - beta1_hat * mean(x)
+y_hat = beta0_hat + beta1_hat * x
+
+SST = S_yy ; SSE = sum((y-y_hat)^{2}) ; SSR = SST - SSE
+
+## (2)
+r_squared = SSR/SST ; r_squared
+
+r_sq_calc = function(x, y){
+  xbar = mean(x) ; ybar = mean(y)
+  S_xx = sum((x-xbar)^{2}) ; S_xy = sum((x-xbar)*(y-ybar) ) ; S_yy = sum((y-ybar)^{2})
+  beta1_hat = S_xy / S_xx ; beta0_hat = ybar - beta1_hat * xbar
+  y_hat = beta0_hat + beta1_hat * x
+  
+  SST = S_yy ; SSE = sum((y-y_hat)^{2}) ; SSR = SST - SSE
+  r_squared = SSR/SST ; r_squared
+  return(list(r_squared = r_squared, beta1_hat = beta1_hat, beta0_hat = beta0_hat))
+}
+
+## (3)
+y_a = log(y) ; result_a = r_sq_calc(x, y_a) ; r_sq_a = result_a$r_squared
+x_b = sqrt(x) ; result_b = r_sq_calc(x_b, y) ; r_sq_b = result_b$r_squared
+x_c = log(x, base = 10) ; y_c = log(y, base = 10) ; result_c = r_sq_calc(x_c, y_c) ; r_sq_c = result_c$r_squared
+y_d = log(y, base = 10) ; result_d = r_sq_calc(x, y_d) ; r_sq_d = result_d$r_squared
+x_e = 1/x ; result_e = r_sq_calc(x_e, y) ; r_sq_e = result_e$r_squared
+
+print(glue("(a) r squared = {r_sq_a}, (b) r squared = {r_sq_b}, (c) r squared = {r_sq_c},
+            (d) r squared = {r_sq_d}, (e) r squared = {r_sq_e}"))
+
+## (4)
+beta0_hat = result_b$beta0_hat ; beta1_hat = result_b$beta1_hat
+y_hat_10 = beta0_hat + beta1_hat * sqrt(10) ; y_hat_10
+```
