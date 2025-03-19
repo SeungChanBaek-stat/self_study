@@ -423,6 +423,8 @@ plot(x, y, xlab = "구매 상품의 금액 x (단위 : 천원)", ylab = "소요�
 ```
 
 ```{r}
+library(glue)
+
 S_xx = sum((x-mean(x))^{2}) ; S_xy = sum( (x-mean(x))*(y-mean(y)) ) ; S_yy = sum((y-mean(y))^{2})
 beta1_hat = S_xy / S_xx ; beta0_hat = mean(y) - beta1_hat * mean(x)
 y_hat = beta0_hat + beta1_hat * x
@@ -430,8 +432,12 @@ y_hat = beta0_hat + beta1_hat * x
 SST = S_yy ; SSE = sum((y-y_hat)^{2}) ; SSR = SST - SSE
 
 ## (2)
-r_squared = SSR/SST ; r_squared
+r_squared = SSR/SST ; 
+print(glue("r_squared = {r_squared}"))
+print(glue("yhat = {beta0_hat} + {beta1_hat} x \n"))
 
+
+## (3)
 r_sq_calc = function(x, y){
   xbar = mean(x) ; ybar = mean(y)
   S_xx = sum((x-xbar)^{2}) ; S_xy = sum((x-xbar)*(y-ybar) ) ; S_yy = sum((y-ybar)^{2})
@@ -457,3 +463,269 @@ print(glue("(a) r squared = {r_sq_a}, (b) r squared = {r_sq_b}, (c) r squared = 
 beta0_hat = result_b$beta0_hat ; beta1_hat = result_b$beta1_hat
 y_hat_10 = beta0_hat + beta1_hat * sqrt(10) ; y_hat_10
 ```
+
+### 5.2
+
+```{r ,echo=FALSE}
+y1 = c(28, 112, 160, 143, 156, 124) ; y2 = c(42, 136, 150, 161, 124, 104)
+x = c(75, 100, 125, 150, 175, 200) ; x_ = rep(x, 2) ; y_ = c(y1, y2)
+
+bank_data = data.frame(x_, y_)
+
+plot(x_, y_, xlab = "x", ylab = "y", pch = 19, cex = 0.5)
+
+## y = beta0 + beta1 x^2 + eps
+
+x0 = c(rep(1, length(x_))) ; x1 = x_ ; x2 = x_^2
+X = cbind(x0, x1, x2) ; y = y_
+
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y
+y_hat = X %*% beta_hat
+SST = sum((y-mean(y))^2) ; SSE = sum((y-y_hat)^2) ; SSR = SST - SSE
+r_squared = SSR/SST
+print(glue("y_hat = {beta_hat[1]} + {beta_hat[2]} * x + {beta_hat[3]} * x^2"))
+print(glue("r_squared = {r_squared}"))
+
+## 적합결여검정
+LF_test = function(fulldata_x, repeatdata_x, observed_y1, observed_y2,
+                   alpha, SSE){
+  
+  n = length(fulldata_x) ; k = length(repeatdata_x)
+  ybar_k = c(rep(0, k))
+  for (i in 1:length(x)){
+    ybar_k[i] = (observed_y1[i] + observed_y2[i])/2
+  }
+  
+  SSPE = sum((observed_y1 - ybar_k)^{2}) + sum((observed_y2 - ybar_k)^{2})
+  SSLF = SSE - SSPE
+  print(glue("SSPE = {SSPE}, SSLF = {SSLF}, SSE = {SSE}"))
+  F_0 = (SSLF/(k-2)) / (SSPE/(n-k))
+  F_alpha = qf(alpha, k-2, n-k, lower.tail = FALSE)
+  
+  if(F_0 > F_alpha){
+    print(glue("Since F_0 > F_{alpha}({k-2}, {n-k}), reject the null hypothesis. \n Here, F_0 = {round(F_0, 3)} and F_{alpha}({k-2}, {n-k}) = {F_alpha}"))
+  }else{
+    print(glue("Since F_0 <= F_{alpha}({k-2}, {n-k}), there is not enough evidence to reject the null hypothesis. \n Here, F_0 = {round(F_0, 3)} and F_{alpha}({k-2}, {n-k}) = {F_alpha}"))
+  }
+}
+
+
+LF_test(x_, x, y1, y2, alpha = 0.05, SSE = SSE)
+
+plot(x_, y_, xlab = "x", ylab = "y", pch = 19, cex = 0.5)
+curve(beta_hat[1] + beta_hat[2] * x + beta_hat[3] * x^2 , from = 60, to = 200, n = 401, add = TRUE, col = "lightblue", lwd = 2.5)
+```
+
+### 5.3
+
+#### 5.3 - (1)
+```{r, echo = FALSE}
+## (1)
+x1 = c(seq(from = 10, to = 70, by = 10)) ; x2 = c(seq(from = 10, to = 70, by = 10))
+y1= c(9.8, 12.5, 14.9, 16.5, 22.4, 24.1, 25.8) ; y2 = c(15.0, 14.5, 16.5, 19.1, 22.3, 20.8, 22.4)
+
+# 산점도 그리기: 생산라인1 (파란색, 원형)
+# x, y 축 범위 설정
+x_range <- range(c(x1, x2))
+y_range <- range(c(y1, y2))
+
+plot(x1, y1, 
+     pch = 19, col = "lightblue",
+     xlab = "트럭 속도", ylab = "총 주행거리", 
+     xlim = c(x_range[1] - 10, x_range[2] + 10),
+     ylim = c(y_range[1] - 10, y_range[2] + 10),
+     main = "타이어회사별 산점도")
+
+# 산점도에 추가: 생산라인2 (빨간색, 삼각형)
+points(x2, y2, 
+       pch = 17, col = "red")
+
+# 범례 추가
+legend("topleft", 
+       legend = c("타이어회사 1", "타이어회사 2"),
+       col = c("lightblue", "red"), 
+       pch = c(19, 17))
+```
+
+#### 5.3 - (2)
+
+```{r, echo= FALSE}
+y = c(x1, x2) ; x = c(y1, y2)
+n1 = length(x1) ; n2 = length(x2)
+lm1 = lm(y1 ~ x1) ; anova1 = anova(lm1)
+lm2 = lm(y2 ~ x2) ; anova2 = anova(lm2)
+lm_F = lm(y ~ x) ; anova_F = anova(lm_F) 
+
+print(glue("y1_hat = {coef(lm1)[1]} + {coef(lm1)[2]}x1"))
+print(glue("y2_hat = {coef(lm2)[1]} + {coef(lm2)[2]}x2"))
+print(glue("y_hat = {coef(lm_F)[1]} + {coef(lm_F)[2]}x"))
+
+SSE_1 = anova1$`Sum Sq`[2] ; SSE_2 = anova2$`Sum Sq`[2]
+SSE_F = SSE_1 + SSE_2 ; SSE_R = anova_F$`Sum Sq`[2]
+df_R = n1 + n2 - 2 ; df_F = (n1 - 2) + (n2 - 2)
+
+F_0 = ((SSE_R - SSE_F) / (df_R - df_F)) / (SSE_F / df_F)
+F_alpha = qf(0.05, df_R - df_F, df_F, lower.tail = FALSE)
+print(glue("SSE_1 = {SSE_1}, SSE_2 = {SSE_2}, df_R = {df_R}, df_F = {df_F}"))
+print(glue("SSE_F = {SSE_F}, SSE_R = {SSE_R}"))
+print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+```
+
+#### 5.3 - (2)
+```{r, echo = FALSE}
+S_xx1 = sum((x1 - mean(x1))^2) ; S_xx2 = sum((x2 - mean(x2))^2)
+beta11_hat = coef(lm1)[2] ; beta12_hat = coef(lm2)[2] ; MSE_F = SSE/(df_F)
+
+t_0 = (beta11_hat - beta12_hat) / sqrt(MSE_F * (1/S_xx1 + 1/S_xx2))
+t_alpha = qt(0.025, df_F, lower.tail = FALSE)
+
+print(glue("|t_0| = {abs(t_0)}, t_alpha/2({df_F}) = {t_alpha}"))
+```
+
+### 5.8
+
+```{r, echo=FALSE}
+y = c(8.5, 8.4, 7.9, 8.1, 7.8, 7.6, 7.3, 7.0, 6.8, 6.7)
+y1 = c(8.5, 7.9, 7.8, 7.3, 6.8) ; y2 = c(8.4, 8.1, 7.6, 7.0, 6.7)
+x = c(seq(from = 0, to = 12, by = 3))
+n = 10 ; k = 5 ; xbar = sum(2*x)/n ; T_i = y1 + y2
+T = sum(T_i) ; ybar = T/n
+
+S_xx= sum(2 * x^2) - (sum(2*x))^2 / n
+S_yy = sum((y1)^2) + sum((y2)^2) - T^2 / n
+S_xy = sum(x * T_i) - sum(2 * x) * T / n
+
+SST = S_yy ; SSR = S_xy^2 / S_xx ; SSE = SST - SSR
+print(glue("SST = {SST}, SSR = {SSR}, SSE = {SSE}"))
+
+MSE = SSE / (n-2) ; MSR = SSR / 1
+
+print(glue("F_0 = {MSR/MSE}, F_alpha = {qf(0.05, 1, n-2, lower.tail = FALSE)}"))
+
+SSPE = sum((y1 - (T_i/2))^2) + sum((y2 - (T_i/2))^2) ; SSLF = SSE - SSPE
+
+print(glue("SSPE = {SSPE}, SSLF = {SSLF}"))
+
+MSPE = SSPE / (n-k) ; MSLF = SSLF / (k-2)
+
+print(glue("F_0_LF = {MSLF/MSPE}, F_alpha = {qf(0.05, k-2, n-k, lower.tail = FALSE)}"))
+```
+
+### 5.11
+
+```{r, echo = FALSE}
+amazon = read.csv("amazon.csv")
+Time = c(rep(1960, 8), rep(1970, 9))
+
+dataset = data.frame(amazon, Time) ; dataset
+```
+
+#### 5.11 - (1)
+
+```{r, echo=FALSE}
+x_1960 = dataset[which(dataset$Time == 1960), 2]
+x_1970 = dataset[which(dataset$Time == 1970), 2]
+
+y_h_1960 = dataset[which(dataset$Time == 1960), 3]
+y_h_1970 = dataset[which(dataset$Time == 1970), 3]
+
+y_l_1960 = dataset[which(dataset$Time == 1960), 4]
+y_l_1970 = dataset[which(dataset$Time == 1970), 4]
+
+lm_h_1960 = lm(y_h_1960 ~ x_1960)
+lm_h_1970 = lm(y_h_1970 ~ x_1970)
+lm_l_1960 = lm(y_l_1960 ~ x_1960)
+lm_l_1970 = lm(y_l_1970 ~ x_1970)
+
+
+# par(mfrow = c(2,2))
+plot(x_1960, y_h_1960, xlab = "연도", ylab = "1960년대 아마존강 최고수위",
+     main = "연도에 따른 아마존강 최고수위", pch = 19, cex = 0.5)
+abline(coef = coef(lm_h_1960))
+
+plot(x_1970, y_h_1970, xlab = "연도", ylab = "1970년대 아마존강 최고수위",
+     main = "연도에 따른 아마존강 최고수위", pch = 19, cex = 0.5)
+abline(coef = coef(lm_h_1970))
+
+plot(x_1960, y_l_1960, xlab = "연도", ylab = "1960년대 아마존강 최저수위",
+     main = "연도에 따른 아마존강 최저수위", pch = 19, cex = 0.5)
+abline(coef = coef(lm_l_1960))
+
+plot(x_1970, y_l_1970, xlab = "연도", ylab = "1970년대 아마존강 최저저수위",
+     main = "연도에 따른 아마존강 최저수위", pch = 19, cex = 0.5)
+abline(coef = coef(lm_l_1970))
+
+```
+
+#### 5.11 - (2)
+
+```{r}
+library(glue)
+## 최고수위의 경우
+### 완전 모형 (full model)
+anova_h_1960 = anova(lm_h_1960) ; anova_h_1970 = anova(lm_h_1970)
+SSE_h_1960 = anova_h_1960$`Sum Sq`[2] ; SSE_h_1970 = anova_h_1970$`Sum Sq`[2]
+df_h_1960 = anova_h_1960$Df[2] ; df_h_1970 = anova_h_1970$Df[2]
+
+SSE_F_h = SSE_h_1960 + SSE_h_1970 ; df_F_h = df_h_1960 + df_h_1970
+
+### 축소 모형 (reduced model)
+y_h = c(y_h_1960, y_h_1970) ; x_h = c(x_1960, x_1970)
+lm_h = lm(y_h ~ x_h)
+anova_h = anova(lm_h)
+SSE_R_h = anova_h$`Sum Sq`[2] ; df_R_h = anova_h$Df[2]
+
+F_0 = ((SSE_R_h - SSE_F_h) / (df_R_h - df_F_h)) / (SSE_F_h / df_F_h)
+F_alpha = qf(0.01, df_R_h - df_F_h, df_F_h, lower.tail = FALSE)
+
+print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+```
+$F_0 = 9.468 > F_\alpha(df_R - df_F, df_F) = 6.701$ 이므로 귀무가설을 기각한다. 즉 1960년대와 1970년대의 아마존강 최고수위에 관한 회귀모형은 동일하다고 할 수 없다.
+
+```{r}
+library(glue)
+## 최저수위의 경우
+### 완전 모형 (full model)
+anova_l_1960 = anova(lm_l_1960) ; anova_l_1970 = anova(lm_l_1970)
+SSE_l_1960 = anova_l_1960$`Sum Sq`[2] ; SSE_l_1970 = anova_l_1970$`Sum Sq`[2]
+df_l_1960 = anova_l_1960$Df[2] ; df_l_1970 = anova_l_1970$Df[2]
+
+SSE_F_l = SSE_l_1960 + SSE_l_1970 ; df_F_l = df_l_1960 + df_l_1970
+
+### 축소 모형 (reduced model)
+y_l = c(y_l_1960, y_l_1970) ; x_l = c(x_1960, x_1970)
+lm_l = lm(y_l ~ x_l)
+anova_l = anova(lm_l)
+SSE_R_l = anova_l$`Sum Sq`[2] ; df_R_l = anova_l$Df[2]
+
+F_0_l = ((SSE_R_l - SSE_F_l) / (df_R_l - df_F_l)) / (SSE_F_l / df_F_l)
+F_alpha_l = qf(0.01, df_R_l - df_F_l, df_F_l, lower.tail = FALSE)
+
+print(glue("F_0 = {F_0_l}, F_alpha = {F_alpha_l}"))
+```
+$F_0 = 6.244 < F_\alpha(df_R - df_F, df_F) = 6.701$ 이므로 귀무가설을 기각할 수 없없다. 즉 1960년대와 1970년대의 아마존강 최저수위에 관한 회귀모형은 동일하다고 할 수 있다.
+
+#### 5.11 - (3)
+
+```{r}
+S_xx1 = sum((x_1960 - mean(x_1960))^2) ; S_xx2 = sum((x_1970 - mean(x_1970))^2)
+
+## 최고수위의 경우
+beta11_hat_h = lm_h_1960$coefficients[2]; beta12_hat_h = lm_h_1970$coefficients[2]
+var_hat_h = (SSE_F_h/df_F_h) * (1/S_xx1 + 1/S_xx2)
+
+t_0 = (beta11_hat_h - beta12_hat_h) / sqrt(var_hat_h) ; t_alpha = qt(0.005, df_F_h, lower.tail = FALSE)
+
+print(glue("유의수준 alpha = 0.01, 아마존강 최고수위의 경우 t_0 = {t_0}, t_alpha = {t_alpha}"))
+
+## 최고수위의 경우
+beta11_hat_l = lm_l_1960$coefficients[2]; beta12_hat_l = lm_l_1970$coefficients[2]
+var_hat_l = (SSE_F_l/df_F_l) * (1/S_xx1 + 1/S_xx2)
+
+t_0 = (beta11_hat_l - beta12_hat_l) / sqrt(var_hat_l) ; t_alpha = qt(0.005, df_F_l, lower.tail = FALSE)
+
+print(glue("유의수준 alpha = 0.01, 아마존강 최저수위의 경우 t_0 = {t_0}, t_alpha = {t_alpha}"))
+```
+아마존강 최고수위의 경우 $|t_0| = 0.017 < t_\alpha(df_F) = 3.0122$으로, 귀무가설을 기각할 수 없다. 즉 유의수준 $\alpha = 0.01$에서 1960년대의 최고수위 증가량 수준과 1970년대의 최고수위 증가량 수준은 동일하다고 할 수 있다.
+
+아마존강 최저수위의 경우 $|t_0| = 3.265 > t_\alpha(df_F) = 3.0122$으로, 귀무가설을 기각한다. 즉 유의수준 $\alpha = 0.01$에서 1960년대의 최저수위 증가량 수준과 1970년대의 최고수위 증가량 수준은 동일하다고 할 수 없다.
