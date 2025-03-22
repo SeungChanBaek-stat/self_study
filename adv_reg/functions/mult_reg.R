@@ -1,7 +1,7 @@
-## 중회귀에서의 분산분석용 함수
 
 
 
+# 중회귀에서의 분산분석용 함수
 mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
   library(glue)
   
@@ -72,4 +72,138 @@ mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
   return(list(XtX = XtX, Xty = Xty, beta_hat = beta_hat,
               SST = SST, SSR = SSR, SSE = SSE,
               MSR = MSR, MSE = MSE))
+}
+
+
+
+
+
+
+
+
+
+# CB = m 검정용 함수수
+mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE){
+  
+  ## 방법 1, 절편이 있는 모형
+  if (coef == TRUE & method == "one"){
+    n = dim(X)[1] ; p = dim(X)[2]
+    if (is.null(dim(C))){
+      k = 1
+    }else{
+      k = dim(C)[1]
+    }
+    
+    x0 = c(rep(1, n)) ; X = cbind(x0, X) ; In = diag(1, n)
+    
+    XtX_inv = solve(t(X) %*% X)
+    H = X %*% XtX_inv %*% t(X)
+    
+    beta_hat = XtX_inv %*% t(X) %*% y
+    
+    SSE = t(y) %*% (In - H) %*% y
+    Cb_m = C %*% beta_hat - m
+    
+    if (k == 1){
+      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% C) %*% (Cb_m)
+    }else{
+      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% t(C)) %*% (Cb_m)
+    }
+    
+    F_0 = (Q/k) / (SSE / (n-p-1)) ; F_alpha = qf(alpha, k, n-p-1, lower.tail = FALSE)
+    print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+    
+    return(list(Q = Q, SSE = SSE, F_0 = F_0, F_alpha = F_alpha))
+
+    
+    
+    ## 방법 1, 절편이 없는 모형
+  }else if (coef == FALSE & method == "one"){
+    n = dim(X)[1] ; p = dim(X)[2]
+    if (is.null(dim(C))){
+      k = 1
+    }else{
+      k = dim(C)[1]
+    }
+    
+    In = diag(1, n)
+    
+    XtX_inv = solve(t(X) %*% X)
+    H = X %*% XtX_inv %*% t(X)
+    
+    beta_hat = XtX_inv %*% t(X) %*% y
+    
+    SSE = t(y) %*% (In - H) %*% y
+    Cb_m = C %*% beta_hat - m
+    
+    if (k == 1){
+      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% C) %*% (Cb_m)
+    }else{
+      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% t(C)) %*% (Cb_m)
+    }
+    
+    
+    F_0 = (Q/k) / (SSE / (n - p)) ; F_alpha = qf(alpha, k, n-p, lower.tail = FALSE)
+    print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+    
+    return(list(Q = Q, SSE = SSE, F_0 = F_0, F_alpha = F_alpha))
+    
+    
+    
+    ## 방법 2, 절편이 있는 모형  
+  }else if (coef == TRUE & method == "two"){
+    n = dim(X)[1] ; p = dim(X)[2]
+    if (is.null(dim(C))){
+      k = 1
+    }else{
+      k = dim(C)[1]
+    }
+    
+    x0 = c(rep(1, n)) ; X = cbind(x0, X) ; In = diag(1, n)
+    
+    XtX_inv = solve(t(X) %*% X)
+    H = X %*% XtX_inv %*% t(X)
+    
+    X_rtX_r_inv = solve(t(X_r) %*% X_r)
+    H_r = X_r %*% X_rtX_r_inv %*% t(X_r)
+    
+    beta_hat = XtX_inv %*% t(X) %*% y_r
+    
+    SSE_F = t(y_r) %*% (In - H) %*% y_r
+    SSE_R = t(y_r) %*% (In - H_r) %*% y_r
+    
+    F_0 = (SSE_R - SSE_F)/(k * SSE_F / (n-p-1)) ; F_alpha = qf(alpha, k, n-p-1, lower.tail = FALSE)
+    print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+    
+    return(list(SSE_F = SSE_F, SSE_R = SSE_R, F_0 = F_0, F_alpha = F_alpha))
+    
+    
+    
+    ## 방법 2, 절편이 없는 모형    
+  }else if (coef == FALSE & method == "two"){
+    n = dim(X)[1] ; p = dim(X)[2]
+    if (is.null(dim(C))){
+      k = 1
+    }else{
+      k = dim(C)[1]
+    }
+    
+    In = diag(1, n)
+    
+    XtX_inv = solve(t(X) %*% X)
+    H = X %*% XtX_inv %*% t(X)
+    
+    X_rtX_r_inv = solve(t(X_r) %*% X_r)
+    H_r = X_r %*% X_rtX_r_inv %*% t(X_r)
+    
+    beta_hat = XtX_inv %*% t(X) %*% y_r
+    
+    SSE_F = t(y_r) %*% (In - H) %*% y_r
+    SSE_R = t(y_r) %*% (In - H_r) %*% y_r
+    
+    F_0 = (SSE_R - SSE_F)/(k * SSE_F / (n-p)) ; F_alpha = qf(alpha, k, n-p, lower.tail = FALSE)
+    print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
+    
+    return(list(SSE_F = SSE_F, SSE_R = SSE_R, F_0 = F_0, F_alpha = F_alpha))
+  }
 }

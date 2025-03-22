@@ -1,0 +1,85 @@
+---
+title: "고급회귀분석 7장"
+output: html_document
+date: "2025-03-22"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+## 7.3 가설 검정
+
+### (예 7.1)
+
+#### (예 7.1) - (1)
+
+```{r}
+## x_1 = 10, x_10 에서 y_hat의 95% 신뢰구간 추정
+source("functions/mult_reg.R", echo=TRUE)
+
+x0 = c(rep(1, 10))
+x1 = c(4, 8, 9, 8, 8, 12, 6, 10, 6, 9)
+x2 = c(4, 10, 8, 5, 10, 15, 8, 13, 5, 12)
+y = c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20)
+n = length(y)
+
+X = cbind(x0, x1, x2)
+
+mult_res = mult_reg(X, y)
+
+x = c(1, 10, 10)
+
+mult_res$beta_hat
+
+y_hat_10_10 = t(x) %*% mult_res$beta_hat ; y_hat_10_10
+
+t(x) %*% solve(mult_res$XtX) %*% x
+
+mult_res$MSE
+
+var_hat_beta_hat = t(x) %*% solve(mult_res$XtX) %*% x * mult_res$MSE
+
+qt(0.025, 7, lower.tail = FALSE) ; var_hat_beta_hat
+
+upper = y_hat_10_10 + qt(0.025, 7, lower.tail = FALSE) * sqrt(var_hat_beta_hat)
+lower = y_hat_10_10 - qt(0.025, 7, lower.tail = FALSE) * sqrt(var_hat_beta_hat)
+
+print(glue("y_hat 95% CI = ({lower}, {upper})"))
+
+```
+
+#### (예 7.1) - (2)
+
+```{r}
+t_0 = (y_hat_10_10 - 25) / sqrt(var_hat_beta_hat) ; t_0
+t_alpha = qt(0.025, 7, lower.tail = FALSE) ; t_alpha
+
+```
+
+#### (예 7.1) - (3)
+
+```{r}
+q = c(0, 1, -1)
+denum = t(q) %*% mult_res$beta_hat ; denum
+denom = sqrt(t(q) %*% solve(mult_res$XtX) %*% q * mult_res$MSE) ; denom
+t_0 = denum / denom ; t_0
+t_alpha
+```
+
+#### (예 7.2)
+
+```{r}
+x1 = c(2, -1, 1, 2, 1) ; x2 = c(1, 2, -3, 1, 4) ; x3 = c(4, 1, 4, 2, 6)
+y = c(8, 10, 9 ,6, 12) ; X = cbind(x1, x2, x3)
+
+## 방법 1
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = FALSE)
+C = as.vector(c(1, -1, 0)) ; m = 4
+x_r1 = c(3, 1, -2, 3, 6) ; x_r2 = c(4, 1, 4, 2, 6)
+X_r = cbind(x_r1, x_r2) ; y_r = c(0, 14, 5, -2, 8)
+
+mult_test_res_method1 = mult_test(C, m ,X, X_r, y, y_r, alpha = 0.05, method = "one", coef = FALSE)
+mult_test_res_method2 = mult_test(C, m ,X, X_r, y, y_r, alpha = 0.05, method = "two", coef = FALSE)
+```
+
+
