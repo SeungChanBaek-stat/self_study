@@ -362,3 +362,40 @@ R2 = mult_res$SSR / mult_res$SST ; R2
 
 lm_0.fit = lm(y ~ x1 + x2 + x3 + 0) ; summary(lm_0.fit)
 ```
+
+### 6.14
+
+```{r}
+# install.packages("ISLR")
+library(ISLR)
+Hitters <- na.omit(Hitters)
+dim(Hitters)
+```
+
+#### 6.14 - (1)
+반응변수 `Salary`에 대하여 설명변수 `AtBat, Hits, HmRun` 을 사용하여 중회귀 모형을 적합하고 분산분석표를 작성한 후 모형의 유의성을 유의수준 $\alpha = 0.01$에서 검정하여라. 변수의 자세한 내용은 다음과 같다.
+
+- Salary : 1987년 계약 연봉 (단위 : 1000달러)
+- AtBat : 1986년 타수 
+- Hits : 1986년 안타수
+- HmRun : 1986년 홈런 개수
+
+```{r}
+select = grepl(pattern = "Salary|AtBat|Hits|HmRun", x = names(Hitters))
+dataset = Hitters[, select] ; dataset = dataset[, c(1,2,3,7)]
+X = dataset[, c(1,2,3)] ; y = dataset[, c(4)]
+X = as.matrix(X)
+
+
+source("functions/mult_reg.R", echo=TRUE)
+mult_res = mult_reg(X, y, alpha = 0.01)
+```
+
+즉, 유의수준 $\alpha = 0.01$에서 $F_0 = 35.4024 >> F_{\alpha}(p, n-p-1) = 4.6877 $이므로 귀무가설 $H_0 : \beta_1 = \beta_2 = \beta_3 = 0$을 기각한다. 즉 적합된 회귀직선은 매우 유의하다고 할 수 있다.
+
+#### 6.14 - (2)
+(1)에서 구한 회귀계수 추정량의 분산-공분산행렬을 추정하시오.
+```{r}
+MSE = mult_res$MSE
+var_hat_beta_hat = solve(mult_res$XtX) * MSE ; var_hat_beta_hat
+```
