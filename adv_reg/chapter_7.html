@@ -373,15 +373,15 @@ source(&quot;functions/mult_reg.R&quot;, echo=TRUE)</code></pre>
 ## 
 ## &gt; mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, 
 ## +     method = &quot;one&quot;, coef = TRUE) {
-## +     if (coef == TRUE &amp; method == &quot;one&quot;) {
-## +         .... [TRUNCATED]</code></pre>
-<pre class="r"><code>x0 = c(rep(1, 10))
-x1 = c(4, 8, 9, 8, 8, 12, 6, 10, 6, 9)
+## +     n = dim(X)[1]
+## +     p = dim(X)[2]
+## +     k = dim .... [TRUNCATED]</code></pre>
+<pre class="r"><code>x1 = c(4, 8, 9, 8, 8, 12, 6, 10, 6, 9)
 x2 = c(4, 10, 8, 5, 10, 15, 8, 13, 5, 12)
 y = c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20)
 n = length(y)
 
-X = cbind(x0, x1, x2)
+X = cbind(x1, x2)
 
 mult_res = mult_reg(X, y)</code></pre>
 <pre><code>##   요인    제곱합 자유도 평균제곱합      F값  F기각치
@@ -394,10 +394,10 @@ mult_res = mult_reg(X, y)</code></pre>
 <pre class="r"><code>x = c(1, 10, 10)
 
 mult_res$beta_hat</code></pre>
-<pre><code>##          [,1]
-## x0 -0.6506596
-## x1  1.5514512
-## x2  0.7598945</code></pre>
+<pre><code>##           [,1]
+## one -0.6506596
+## x1   1.5514512
+## x2   0.7598945</code></pre>
 <pre class="r"><code>y_hat_10_10 = t(x) %*% mult_res$beta_hat ; y_hat_10_10</code></pre>
 <pre><code>##         [,1]
 ## [1,] 22.4628</code></pre>
@@ -455,7 +455,7 @@ mult_res = mult_reg(X, y, alpha = 0.05, coeff = FALSE)</code></pre>
 ## SST = 425, SSR = 372.867587795049, SSE = 52.1324122049511
 ## MSR = 124.289195931683, MSE = 26.0662061024755
 ## F_0 = 4.76821196928536, F_alpha = 19.1642921275113</code></pre>
-<pre class="r"><code>C = as.vector(c(1, -1, 0)) ; m = 4
+<pre class="r"><code>c1 = c(1, -1, 0) ; C = rbind(c1) ; m = 4
 x_r1 = c(3, 1, -2, 3, 6) ; x_r2 = c(4, 1, 4, 2, 6)
 X_r = cbind(x_r1, x_r2) ; y_r = c(0, 14, 5, -2, 8)
 
@@ -571,6 +571,422 @@ library(car)</code></pre>
 성립하는가를 검정하는 <span class="math inline">\(C
 \boldsymbol{\mathbf{\beta}} = m\)</span>의 검정은 8장에서 구체적인 실습
 예제를 통해 살펴 보기로 한다.</p>
+</div>
+<div id="연습문제" class="section level2">
+<h2>연습문제</h2>
+<div id="section" class="section level3">
+<h3>7.1</h3>
+<pre class="r"><code>x1 = c(1, 2, 1, 3, 3, 3) ; x2 = c(1, 1, 2, 1, 2, 3)
+y = c(1, 5, 0, 4, 4, -1) ; X = cbind(x1, x2)</code></pre>
+<div id="section-1" class="section level4">
+<h4>7.1 - (1)</h4>
+<pre class="r"><code>mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)</code></pre>
+<pre><code>##   요인    제곱합 자유도 평균제곱합      F값  F기각치
+## 1 회귀 23.158915      2   11.57946 4.526515 9.552094
+## 2 잔차  7.674419      3    2.55814       NA       NA
+## 3   계 30.833333      5         NA       NA       NA
+## SST = 30.8333333333333, SSR = 23.1589147286822, SSE = 7.67441860465114
+## MSR = 11.5794573643411, MSE = 2.55813953488371
+## F_0 = 4.52651515151517, F_alpha = 9.55209449592116</code></pre>
+<pre class="r"><code>print(glue(&quot;\n&quot;))</code></pre>
+<pre class="r"><code>mult_res$beta_hat ; mult_res$MSE</code></pre>
+<pre><code>##          [,1]
+## one  3.232558
+## x1   1.511628
+## x2  -2.604651</code></pre>
+<pre><code>## [1] 2.55814</code></pre>
+</div>
+<div id="section-2" class="section level4">
+<h4>7.1 - (2)</h4>
+<pre class="r"><code>x = c(1, 2, 2) ; alpha = 0.05 ; n = length(y) ; p = dim(X)[2]
+
+yhat = t(x) %*% mult_res$beta_hat
+t_alpha = qt(alpha/2, n-p-1, lower.tail = FALSE)
+temp = t(x) %*% solve(mult_res$XtX) %*% x
+MSE = mult_res$MSE
+
+CI_lower = yhat - t_alpha * sqrt(temp * MSE)
+CI_upper = yhat + t_alpha * sqrt(temp * MSE)
+
+print(glue(&quot;yhat 95% CI = ({CI_lower},{CI_upper})&quot;))</code></pre>
+<pre><code>## yhat 95% CI = (-1.34598191618248,3.43900517199644)</code></pre>
+</div>
+<div id="section-3" class="section level4">
+<h4>7.1 - (3)</h4>
+<pre class="r"><code>x = c(0, 1, 0) ; alpha = 0.10 ; n = length(y) ; p = dim(X)[2]
+
+beta1hat = t(x) %*% mult_res$beta_hat
+t_alpha = qt(alpha/2, n-p-1, lower.tail = FALSE)
+temp = t(x) %*% solve(mult_res$XtX) %*% x
+MSE = mult_res$MSE
+
+CI_lower = beta1hat - t_alpha * sqrt(temp * MSE)
+CI_upper = beta1hat + t_alpha * sqrt(temp * MSE)
+
+print(glue(&quot;beta1hat 90% CI = ({CI_lower},{CI_upper})&quot;))</code></pre>
+<pre><code>## beta1hat 90% CI = (-0.303540350832478,3.32679616478597)</code></pre>
+</div>
+<div id="section-4" class="section level4">
+<h4>7.1 - (4)</h4>
+<pre class="r"><code>x = c(0, 1, -1) ; alpha = 0.01 ; n = length(y) ; p = dim(X)[2]
+
+beta1hat_beta2hat = t(x) %*% mult_res$beta_hat
+t_alpha = qt(alpha/2, n-p-1, lower.tail = FALSE)
+temp = t(x) %*% solve(mult_res$XtX) %*% x
+MSE = mult_res$MSE
+
+CI_lower = beta1hat_beta2hat - t_alpha * sqrt(temp * MSE)
+CI_upper = beta1hat_beta2hat + t_alpha * sqrt(temp * MSE)
+
+print(glue(&quot;beta1hat_beta2hat 99% CI = ({CI_lower},{CI_upper})&quot;))</code></pre>
+<pre><code>## beta1hat_beta2hat 99% CI = (-4.005478663093,12.2380368026279)</code></pre>
+</div>
+<div id="section-5" class="section level4">
+<h4>7.1 - (5)</h4>
+<pre class="r"><code>c1 = c(0, 1, -1) ; C = rbind(c1) ; m = 0
+x_r1 = 2 * x1 + x2
+X_r = matrix(x_r1, nrow = length(x_r1)) ; y_r = y
+
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = TRUE)</code></pre>
+<pre><code>## F_0 = 8.76335664335667, F_alpha = 10.1279644860139</code></pre>
+</div>
+<div id="section-6" class="section level4">
+<h4>7.1 - (6)</h4>
+<pre class="r"><code>c1 = c(0, 1, 0) ; C = rbind(c1) ; m = 0
+x_r1 = 2 * x1 + x2
+X_r = matrix(x_r1, nrow = length(x_r1)) ; y_r = y
+
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = TRUE)</code></pre>
+<pre><code>## F_0 = 3.8409090909091, F_alpha = 10.1279644860139</code></pre>
+</div>
+<div id="section-7" class="section level4">
+<h4>7.1 - (7)</h4>
+<pre class="r"><code>x = c(1, 2, 3)
+Ey = t(x) %*% mult_res$beta_hat
+t_0 = (Ey - 4) / sqrt((t(x) %*% solve(mult_res$XtX) %*% x ) * MSE)
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE)
+
+print(glue(&quot;t_0 = {t_0}, t_alpha = {t_alpha}&quot;))</code></pre>
+<pre><code>## t_0 = -3.85183376804132, t_alpha = 3.18244630528371</code></pre>
+</div>
+<div id="section-8" class="section level4">
+<h4>7.1 - (8)</h4>
+<pre class="r"><code>x = c(0, 0, 1)
+beta2hat = t(x) %*% mult_res$beta_hat
+t_0 = (beta2hat - 0) / sqrt((t(x) %*% solve(mult_res$XtX) %*% x ) * MSE)
+t_alpha = qt(0.05, n-p-1, lower.tail = FALSE)
+
+print(glue(&quot;t_0 = {t_0}, t_alpha = {t_alpha}&quot;))</code></pre>
+<pre><code>## t_0 = -2.80438528068236, t_alpha = 2.35336343480183</code></pre>
+</div>
+<div id="section-9" class="section level4">
+<h4>7.1 - (9)</h4>
+<pre class="r"><code>c1 = c(0, 1, -2) ; C = rbind(c1) ; m = 0
+x_r1 = x1 + x2/2
+X_r = matrix(x_r1, nrow = length(x_r1)) ; y_r = y
+
+mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = TRUE)</code></pre>
+<pre><code>## F_0 = 9.03906926406929, F_alpha = 10.1279644860139</code></pre>
+<pre class="r"><code>mult_test_res2 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;two&quot;, coef = TRUE)</code></pre>
+<pre><code>## F_0 = 9.03906926406929, F_alpha = 10.1279644860139</code></pre>
+<pre class="r"><code>SSE_F = mult_test_res2$SSE_F ; SSE_F</code></pre>
+<pre><code>##          [,1]
+## [1,] 7.674419</code></pre>
+<pre class="r"><code>SSE_R = mult_test_res2$SSE_R ; SSE_R</code></pre>
+<pre><code>##          [,1]
+## [1,] 30.79762</code></pre>
+<pre class="r"><code>Q = mult_test_res1$Q ; Q</code></pre>
+<pre><code>##         [,1]
+## [1,] 23.1232</code></pre>
+</div>
+</div>
+<div id="section-10" class="section level3">
+<h3>7.2</h3>
+<pre class="r"><code>x1 = c(10, 24, 25, 28, 15, 18, 22, 22, 12, 15) ; x2 = c(27, 26, 28, 26, 30, 24, 27, 25, 27, 25)
+x3 = c(64, 72, 80, 88, 81, 45, 46, 69, 54, 39)
+X = cbind(x1, x2, x3) ; y = c(2.8, 3.9, 3.9, 4.4, 3.1, 3.1, 3.5, 3.6, 3.0, 3.3)
+
+n = dim(X)[1] ; p = dim(X)[2]</code></pre>
+<div id="section-11" class="section level4">
+<h4>7.2 - (1)</h4>
+<pre class="r"><code>mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)</code></pre>
+<pre><code>##   요인    제곱합 자유도 평균제곱합      F값  F기각치
+## 1 회귀 2.0464661      3 0.68215537 23.05437 4.757063
+## 2 잔차 0.1775339      6 0.02958898       NA       NA
+## 3   계 2.2240000      9         NA       NA       NA
+## SST = 2.22399999999999, SSR = 2.04646610041563, SSE = 0.17753389958437
+## MSR = 0.682155366805209, MSE = 0.0295889832640616
+## F_0 = 23.054369956461, F_alpha = 4.75706266308942</code></pre>
+<pre class="r"><code>MSE = mult_res$MSE
+a = c(0,0,0,1) ; beta3hat = t(a) %*% mult_res$beta_hat
+var_hat_beta3hat = t(a) %*% solve(mult_res$XtX) %*% a * MSE
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE)
+
+CI_lower = beta3hat - t_alpha * sqrt(var_hat_beta3hat)
+CI_upper = beta3hat + t_alpha * sqrt(var_hat_beta3hat)
+
+print(glue(&quot;beta3hat CI = ({CI_lower}, {CI_upper})&quot;))</code></pre>
+<pre><code>## beta3hat CI = (-0.00649639079625278, 0.0182252595601267)</code></pre>
+</div>
+<div id="section-12" class="section level4">
+<h4>7.2 - (2)</h4>
+<pre class="r"><code>a = c(0,1,0,0) ; beta1hat = t(a) %*% mult_res$beta_hat
+var_hat_beta1hat = t(a) %*% solve(mult_res$XtX) %*% a * MSE
+t_alpha = qt(0.005, n-p-1, lower.tail = FALSE)
+
+CI_lower = beta1hat - t_alpha * sqrt(var_hat_beta1hat)
+CI_upper = beta1hat + t_alpha * sqrt(var_hat_beta1hat)
+
+print(glue(&quot;beta1hat CI = ({CI_lower}, {CI_upper})&quot;))</code></pre>
+<pre><code>## beta1hat CI = (0.0229255411550685, 0.116650469570888)</code></pre>
+</div>
+<div id="section-13" class="section level4">
+<h4>7.2 - (3)</h4>
+<pre class="r"><code>x = c(1,20,27,60) ; yhat = t(x) %*% mult_res$beta_hat
+var_hat_yhat = t(x) %*% solve(mult_res$XtX) %*% x * MSE
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE)
+
+CI_lower = yhat - t_alpha * sqrt(var_hat_yhat)
+CI_upper = yhat + t_alpha * sqrt(var_hat_yhat)
+
+print(glue(&quot;yhat CI = ({CI_lower}, {CI_upper})&quot;))</code></pre>
+<pre><code>## yhat CI = (3.31399371197618, 3.66228839915666)</code></pre>
+</div>
+<div id="section-14" class="section level4">
+<h4>7.2 - (4)</h4>
+<pre class="r"><code>a = c(0,1,0,0)
+beta1hat = t(a) %*% mult_res$beta_hat
+t_0 = (beta1hat - 0) / sqrt( t(a) %*% solve(mult_res$XtX) %*% a * MSE)
+t_alpha = qt(0.05, n-p-1, lower.tail = FALSE)
+
+print(glue(&quot;t_0 = {t_0}, t_alpha = {t_alpha}&quot;))</code></pre>
+<pre><code>## t_0 = 5.52113532671206, t_alpha = 1.9431802805153</code></pre>
+</div>
+<div id="section-15" class="section level4">
+<h4>7.2 - (5)</h4>
+<pre class="r"><code>c1 = c(0,1,-1,0) ; c2 = c(0,0,1,-1)
+C = rbind(c1,c2) ; m = 0
+
+mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = TRUE)</code></pre>
+<pre><code>## F_0 = 15.9678098276181, F_alpha = 5.14325284978472</code></pre>
+<pre class="r"><code>Q = mult_test_res1$Q ; Q</code></pre>
+<pre><code>##           [,1]
+## [1,] 0.9449425</code></pre>
+</div>
+<div id="section-16" class="section level4">
+<h4>7.2 - (6)</h4>
+<pre class="r"><code>c1 = c(0,1,-1,0)
+C = rbind(c1) ; m = 3
+mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = TRUE)</code></pre>
+<pre><code>## F_0 = 5311.08196222581, F_alpha = 5.9873776072737</code></pre>
+<pre class="r"><code>Q = mult_test_res1$Q ; Q</code></pre>
+<pre><code>##          [,1]
+## [1,] 157.1495</code></pre>
+</div>
+<div id="section-17" class="section level4">
+<h4>7.2 - (7)</h4>
+<pre class="r"><code>x = c(1, 20, 27, 60) ; yhat = t(x) %*% mult_res$beta_hat
+var_hat_yhat = t(x) %*% solve(mult_res$XtX) %*% x * MSE
+
+t_0  = (yhat - 3.5) / sqrt(var_hat_yhat) ; t_0</code></pre>
+<pre><code>##            [,1]
+## [1,] -0.1666278</code></pre>
+<pre class="r"><code>t_alpha = qt(0.025, n-p-1, lower.tail = FALSE) ; t_alpha</code></pre>
+<pre><code>## [1] 2.446912</code></pre>
+</div>
+<div id="section-18" class="section level4">
+<h4>7.2 - (8)</h4>
+<pre class="r"><code>beta_tilde_est = function(C, m, X, y){
+  one = c(rep(1, n)) ; X = cbind(one, X)
+  XtX_inv = solve( t(X) %*% X )
+  beta_hat = XtX_inv %*% t(X) %*% y
+  print(glue(&quot;{dim(XtX_inv)}, {dim(t(C))}&quot;))
+  
+  beta_tilde = beta_hat - XtX_inv %*% t(C) %*% solve(C %*% XtX_inv %*% t(C)) %*% (C %*% beta_hat - m)
+  
+  return(beta_tilde)
+}
+
+c1 = c(0, 1, -1, 0) ; c2 = c(0, 0, 1, -1) ; C = rbind(c1, c2)
+m1 = 0 ; m2 = 0 ; m = rbind(m1, m2)
+
+beta_tilde = beta_tilde_est(C, m, X, y) ; beta_tilde</code></pre>
+<pre><code>## 4, 4
+## 4, 2</code></pre>
+<pre><code>##           [,1]
+## one 1.66031840
+## x1  0.01645047
+## x2  0.01645047
+## x3  0.01645047</code></pre>
+</div>
+<div id="section-19" class="section level4">
+<h4>7.2- (9)</h4>
+<pre class="r"><code>c1 = c(0, 1, -1, 0) ; C = rbind(c1)
+m1 = 3 ; m = rbind(m1)
+
+beta_tilde = beta_tilde_est(C, m, X, y) ; beta_tilde</code></pre>
+<pre><code>## 4, 4
+## 4, 1</code></pre>
+<pre><code>##           [,1]
+## one 77.7140851
+## x1  -0.1683286
+## x2  -3.1683286
+## x3   0.2025345</code></pre>
+</div>
+</div>
+<div id="section-20" class="section level3">
+<h3>7.3</h3>
+<pre class="r"><code>x1 = c(10, 24, 25, 28, 15, 18, 22, 22, 12, 15)
+x2 = c(27, 26, 28, 26, 30, 24, 27, 25, 27, 25) ; x3 = c(64, 72, 80, 88, 81, 45, 46, 69, 54, 39)
+X = cbind(x1, x2, x3) ; y = c(2.8, 3.9, 3.9, 4.4, 3.1, 3.1, 3.5, 3.6, 3.0, 3.3)
+
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = FALSE)</code></pre>
+<pre><code>##   요인      제곱합 자유도  평균제곱합      F값  F기각치
+## 1 회귀 121.6269973      3 40.54233243 906.6897 4.346831
+## 2 잔차   0.3130027      7  0.04471467       NA       NA
+## 3   계 121.9400000     10          NA       NA       NA
+## SST = 121.94, SSR = 121.626997286918, SSE = 0.313002713082091
+## MSR = 40.5423324289726, MSE = 0.0447146732974416
+## F_0 = 906.689671179871, F_alpha = 4.34683139990782</code></pre>
+<pre class="r"><code>beta_hat = mult_res$beta_hat ; beta_hat</code></pre>
+<pre><code>##             [,1]
+## x1  8.522397e-02
+## x2  6.895587e-02
+## x3 -1.146172e-05</code></pre>
+<pre class="r"><code>MSE = mult_res$MSE ; n = dim(X)[1] ; p = dim(X)[2]</code></pre>
+<div id="section-21" class="section level4">
+<h4>7.3 - (1)</h4>
+<pre class="r"><code>a = c(0, 1, 0) ; beta2hat = t(a) %*% beta_hat
+var_hat_beta2hat = t(a) %*% solve(mult_res$XtX) %*% a * MSE
+t_alpha = qt(0.025, n-p, lower.tail = FALSE)
+
+CI_lower = beta2hat - t_alpha * sqrt(var_hat_beta2hat)
+CI_upper = beta2hat + t_alpha * sqrt(var_hat_beta2hat)
+
+print(glue(&quot;beta2hat CI = ({CI_lower},{CI_upper})&quot;))</code></pre>
+<pre><code>## beta2hat CI = (0.041201912475889,0.0967098217639194)</code></pre>
+</div>
+<div id="section-22" class="section level4">
+<h4>7.3 - (2)</h4>
+<pre class="r"><code>c1 = c(0,1,0) ; C = rbind(c1) ; m1 = 0 ; m = rbind(m1)
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = FALSE)</code></pre>
+<pre><code>## F_0 = 34.5157232828566, F_alpha = 5.59144785122074</code></pre>
+<pre class="r"><code>Q = mult_test_res$Q ; Q</code></pre>
+<pre><code>##          [,1]
+## [1,] 1.543359</code></pre>
+</div>
+<div id="section-23" class="section level4">
+<h4>7.3 - (3)</h4>
+<pre class="r"><code>c1 = c(1, -1, 0) ; c2 = c(0, 1, -1) ; C = rbind(c1, c2) ; m1 = 0 ; m2 = 0 ; m = rbind(m1, m2)
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = &quot;one&quot;, coef = FALSE)</code></pre>
+<pre><code>## F_0 = 19.1902041119325, F_alpha = 4.73741412777588</code></pre>
+<pre class="r"><code>Q = mult_test_res$Q ; Q</code></pre>
+<pre><code>##          [,1]
+## [1,] 1.716167</code></pre>
+</div>
+</div>
+<div id="section-24" class="section level3">
+<h3>7.4</h3>
+<pre class="r"><code>y1 = c(2.0, 5.7, 4.5, 5.3) ; y2 = c(2.3, 4.8, 4.2, 5.5)
+x1 = c(-1, 1, -1, 1) ; x2 = c(-1, -1, 1, 1)
+ni = 2 ; k = length(x1)</code></pre>
+<div id="section-25" class="section level4">
+<h4>7.4 - (1)</h4>
+<pre class="r"><code>X0 = c(rep(1, ni * k)) ; X1 = c(rep(x1, 2)) ; X2 = c(rep(x2, 2)) ; 
+X = cbind(X0, X1, X2) ; Y = c(y1, y2)
+
+In = diag(1, ni * k) ; H = X %*% solve( t(X) %*% X) %*% t(X)
+yhat = H %*% Y ; yhat</code></pre>
+<pre><code>##        [,1]
+## [1,] 2.6625
+## [2,] 4.7375
+## [3,] 3.8375
+## [4,] 5.9125
+## [5,] 2.6625
+## [6,] 4.7375
+## [7,] 3.8375
+## [8,] 5.9125</code></pre>
+<pre class="r"><code>ybar_i = c(rep(0, k))
+for (i in 1:k){
+  ybar_i[i] = (y1[i] + y2[i])/2
+}
+
+SSPE = sum(y1^2 + y2^2) - sum(ni * ybar_i^2) ; SSPE</code></pre>
+<pre><code>## [1] 0.515</code></pre>
+<pre class="r"><code>SSLF = sum(ni * (ybar_i - yhat[1:k,])^2) ; SSLF</code></pre>
+<pre><code>## [1] 2.10125</code></pre>
+<pre class="r"><code>SSE = t(Y) %*% (In - H) %*% Y ; SSE</code></pre>
+<pre><code>##         [,1]
+## [1,] 2.61625</code></pre>
+<pre class="r"><code>F_L = (SSLF / 1) / (SSPE / 4) ; F_L</code></pre>
+<pre><code>## [1] 16.32039</code></pre>
+<pre class="r"><code>F_alpha = qf(0.05, 1, 4, lower.tail = FALSE) ; F_alpha</code></pre>
+<pre><code>## [1] 7.708647</code></pre>
+</div>
+<div id="section-26" class="section level4">
+<h4>7.4 - (2)</h4>
+<pre class="r"><code>e = (In - H) %*% Y ; yhat = H %*% Y ; X1 = X1 ; X2 = X2
+# par(mfrow=c(1, 3))
+plot(x = yhat, y = e, xlab = expression(hat(y)[i]), ylab = expression(e[i]), 
+     main = expression(paste(&quot;(a)&quot;, hat(y)[i], &quot;에 대하여&quot;)))</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
+<pre class="r"><code>plot(x = X1, y = e, xlab = expression(x[i1]), ylab = expression(e[i]), 
+     main = expression(paste(&quot;(b)&quot;, x[i1], &quot;에 대하여&quot;)))</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
+<pre class="r"><code>plot(x = X2, y = e, xlab = expression(x[i2]), ylab = expression(e[i]), 
+     main = expression(paste(&quot;(c)&quot;, x[i2], &quot;에 대하여&quot;)))</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
+</div>
+<div id="section-27" class="section level4">
+<h4>7.4 - (3)</h4>
+<pre class="r"><code>e = (In - H) %*% Y ; yhat = H %*% Y ; X1 = X1 ; X2 = X2
+
+## (a)
+sum(e)</code></pre>
+<pre><code>## [1] -3.330669e-16</code></pre>
+<pre class="r"><code>## (b)
+t(e) %*% yhat</code></pre>
+<pre><code>##              [,1]
+## [1,] 4.440892e-16</code></pre>
+<pre class="r"><code>## (c)
+t(X1) %*% e</code></pre>
+<pre><code>##              [,1]
+## [1,] 5.551115e-16</code></pre>
+<pre class="r"><code>## (d)
+t(X2) %*% e</code></pre>
+<pre><code>##              [,1]
+## [1,] 3.330669e-16</code></pre>
+</div>
+</div>
+<div id="section-28" class="section level3">
+<h3>7.5</h3>
+<pre class="r"><code>x1 = c(1, 2, 1, 3, 3, 3) ; x2 = c(1, 1, 2, 1, 2, 3)
+y = c(1, 5, 0, 4, 4, -1) ; X = cbind(x1, x2)
+
+n = length(x1) ; x0 = c(rep(1, n)) ; X = cbind(x0, X) ; In = diag(1, n) ; p = 2
+H = X %*% solve(t(X) %*% X) %*% t(X)
+
+e = (In - H) %*% y
+SSE = t(y) %*% e ; MSE = as.numeric(SSE/ (n-p-1))
+var_e = (In - H) ; var_e</code></pre>
+<pre><code>##             [,1]        [,2]        [,3]        [,4]        [,5]        [,6]
+## [1,]  0.51162791 -0.27906977 -0.37209302 -0.06976744  0.04651163  0.16279070
+## [2,] -0.27906977  0.69767442 -0.06976744 -0.32558140 -0.11627907  0.09302326
+## [3,] -0.37209302 -0.06976744  0.40697674  0.23255814  0.01162791 -0.20930233
+## [4,] -0.06976744 -0.32558140  0.23255814  0.41860465 -0.27906977  0.02325581
+## [5,]  0.04651163 -0.11627907  0.01162791 -0.27906977  0.68604651 -0.34883721
+## [6,]  0.16279070  0.09302326 -0.20930233  0.02325581 -0.34883721  0.27906977</code></pre>
+<pre class="r"><code>varhat_e = MSE * (In - H) ; varhat_e</code></pre>
+<pre><code>##            [,1]       [,2]        [,3]        [,4]        [,5]        [,6]
+## [1,]  1.3088156 -0.7138994 -0.95186587 -0.17847485  0.11898323  0.41644132
+## [2,] -0.7138994  1.7847485 -0.17847485 -0.83288264 -0.29745809  0.23796647
+## [3,] -0.9518659 -0.1784749  1.04110330  0.59491617  0.02974581 -0.53542455
+## [4,] -0.1784749 -0.8328826  0.59491617  1.07084911 -0.71389941  0.05949162
+## [5,]  0.1189832 -0.2974581  0.02974581 -0.71389941  1.75500270 -0.89237426
+## [6,]  0.4164413  0.2379665 -0.53542455  0.05949162 -0.89237426  0.71389941</code></pre>
+<pre class="r"><code>rho12 = var_e[1,2] / sqrt(var_e[1,1] * var_e[2,2]) ; rho12</code></pre>
+<pre><code>## [1] -0.4670994</code></pre>
+</div>
 </div>
 
 

@@ -254,7 +254,7 @@ mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", c
 mult_test_res2 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "two", coef = TRUE)
 
 SSE_F = mult_test_res2$SSE_F ; SSE_F
-SSE_R = mult_test_res2$SSE_R ; SSE_R_h
+SSE_R = mult_test_res2$SSE_R ; SSE_R
 
 Q = mult_test_res1$Q ; Q
 ```
