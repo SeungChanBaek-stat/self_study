@@ -17,13 +17,12 @@ header-includes:
 ## x_1 = 10, x_10 에서 y_hat의 95% 신뢰구간 추정
 source("functions/mult_reg.R", echo=TRUE)
 
-x0 = c(rep(1, 10))
 x1 = c(4, 8, 9, 8, 8, 12, 6, 10, 6, 9)
 x2 = c(4, 10, 8, 5, 10, 15, 8, 13, 5, 12)
 y = c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20)
 n = length(y)
 
-X = cbind(x0, x1, x2)
+X = cbind(x1, x2)
 
 mult_res = mult_reg(X, y)
 
@@ -66,20 +65,471 @@ t_0 = denum / denom ; t_0
 t_alpha
 ```
 
-#### (예 7.2)
+### (예 7.2)
 
 ```{r}
 x1 = c(2, -1, 1, 2, 1) ; x2 = c(1, 2, -3, 1, 4) ; x3 = c(4, 1, 4, 2, 6)
 y = c(8, 10, 9 ,6, 12) ; X = cbind(x1, x2, x3)
 
-## 방법 1
 mult_res = mult_reg(X, y, alpha = 0.05, coeff = FALSE)
-C = as.vector(c(1, -1, 0)) ; m = 4
+c1 = c(1, -1, 0) ; C = rbind(c1) ; m = 4
 x_r1 = c(3, 1, -2, 3, 6) ; x_r2 = c(4, 1, 4, 2, 6)
 X_r = cbind(x_r1, x_r2) ; y_r = c(0, 14, 5, -2, 8)
 
+## 방법 1
 mult_test_res_method1 = mult_test(C, m ,X, X_r, y, y_r, alpha = 0.05, method = "one", coef = FALSE)
+
+## 방법 2
 mult_test_res_method2 = mult_test(C, m ,X, X_r, y, y_r, alpha = 0.05, method = "two", coef = FALSE)
+
+(mult_test_res_method1$Q / 1) / (mult_test_res_method1$SSE / (2))
+mult_test_res_method1$SSE
 ```
+
+## 7.7 R 실습
+
+[표 6.1]의 데이터에 대하여 중회귀모형, $y = \beta_0 + \beta_1 x_1 + \beta_2 x_2 + \epsilon, ~\epsilon \sim N(0, \sigma^{2})$ 을 가정하여 적합시켰을 때, 다음의 가설들을 $\alpha = 0.05$ 로 검정해 보자.
+
+(1) $H_0 : \beta_1 = \beta_2 \quad \text{vs} \quad H_1 : \beta_1 \neq \beta_2$
+(2) $H_0 : \beta_1 = 1 \quad \text{vs} \quad H_1 : \beta_1 \neq 1$
+(3) $H_0 : \beta_0 = 0 \quad \text{vs} \quad H_1 : \beta_0 \neq 0$
+(4) $H_0 : \beta_1 = \beta_2 + 1 \quad \text{vs} \quad H_1 : \beta_1 \neq \beta_2 + 1$
+
+먼저 [표 6.1]의 자료를 생성하여 중회귀모형을 적합한 결과는 다음과 같다.
+
+```{r}
+x1 <- c(4, 8, 9, 8, 8, 12, 6, 10, 6, 9)
+x2 <- c(4, 10, 8, 5, 10, 15, 8, 13, 5, 12)
+y <- c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20)
+
+fit <- lm(y ~ x1 + x2)
+anova(fit)
+```
+
+위 적합결과로부터 귀무가설을 각각 회귀계쑤들의 선형조합 $\mathbf{q}^{\top} \bm{\beta} = c$의 형태로 바꾸고 $\mathbf{q}$와 $c$를 설정하여 검정할 수 있다. 이것은 `car` 패키지의 `linearHypothesis()`함수를 사용할 수 있다. 먼저 귀무가설(1)의 경우는 $\mathbf{q} = (0, 1, -1)^{\top} 이고, c = 0$이 된다.
+
+```{r}
+# install.packages("car")
+library(car)
+linearHypothesis(fit, c(0, 1, -1), 0) # 귀무가설 (1)
+```
+
+이 경우 $SSE(\tilde{\bm{\beta}}) = 39.535,~ SSE = 36.326$으로 $Q = 3.209$가 됨을 알 수 있다. 따라서 $F_0 = 0.6184$가 되고 유의확률이 0.4574로 유의수준 5%에서 귀무가설(1)을 기각할 수 없다. 한편 귀무가설(2)-(4)의 경우는 $\mathbf{q}$와 $c$를 다음과 같이 쓸 수 있다.
+
+```{r}
+linearHypothesis(fit, c(0, 1, 0), 1) # 귀무가설 (2)
+
+linearHypothesis(fit, c(1, 0, 0), 0) # 귀무가설 (3)
+
+linearHypothesis(fit, c(0, 1, -1), 1) # 귀무가설 (4)
+```
+
+위 결과로부터 귀무가설(2)-(4)의 경우 모두 $\alpha = 0.05$에서 기각할 수 없음을 알 수 있다. 위 내용은 모두 $\beta_j$들의 선형조합에 대한 검정결과인데, $k$개의 선형조합 $\mathbf{q}_i \bm{\beta} = c_i,~ i=1,2, \cdots, k$이 동시에 성립하는가를 검정하는 $C \bm{\beta} = m$의 검정은 8장에서 구체적인 실습 예제를 통해 살펴 보기로 한다.
+
+
+## 연습문제 
+
+### 7.1
+
+```{r}
+x1 = c(1, 2, 1, 3, 3, 3) ; x2 = c(1, 1, 2, 1, 2, 3)
+y = c(1, 5, 0, 4, 4, -1) ; X = cbind(x1, x2)
+```
+
+#### 7.1 - (1)
+
+```{r}
+
+
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+print(glue("\n"))
+mult_res$beta_hat ; mult_res$MSE
+
+
+```
+
+#### 7.1 - (2)
+
+```{r}
+x = c(1, 2, 2) ; alpha = 0.05 ; n = length(y) ; p = dim(X)[2]
+
+yhat = t(x) %*% mult_res$beta_hat
+t_alpha = qt(alpha/2, n-p-1, lower.tail = FALSE)
+temp = t(x) %*% solve(mult_res$XtX) %*% x
+MSE = mult_res$MSE
+
+CI_lower = yhat - t_alpha * sqrt(temp * MSE)
+CI_upper = yhat + t_alpha * sqrt(temp * MSE)
+
+print(glue("yhat 95% CI = ({CI_lower},{CI_upper})"))
+```
+
+#### 7.1 - (3)
+
+```{r}
+x = c(0, 1, 0) ; alpha = 0.10 ; n = length(y) ; p = dim(X)[2]
+
+beta1hat = t(x) %*% mult_res$beta_hat
+t_alpha = qt(alpha/2, n-p-1, lower.tail = FALSE)
+temp = t(x) %*% solve(mult_res$XtX) %*% x
+MSE = mult_res$MSE
+
+CI_lower = beta1hat - t_alpha * sqrt(temp * MSE)
+CI_upper = beta1hat + t_alpha * sqrt(temp * MSE)
+
+print(glue("beta1hat 90% CI = ({CI_lower},{CI_upper})"))
+```
+
+#### 7.1 - (4)
+
+```{r}
+x = c(0, 1, -1) ; alpha = 0.01 ; n = length(y) ; p = dim(X)[2]
+
+beta1hat_beta2hat = t(x) %*% mult_res$beta_hat
+t_alpha = qt(alpha/2, n-p-1, lower.tail = FALSE)
+temp = t(x) %*% solve(mult_res$XtX) %*% x
+MSE = mult_res$MSE
+
+CI_lower = beta1hat_beta2hat - t_alpha * sqrt(temp * MSE)
+CI_upper = beta1hat_beta2hat + t_alpha * sqrt(temp * MSE)
+
+print(glue("beta1hat_beta2hat 99% CI = ({CI_lower},{CI_upper})"))
+```
+
+#### 7.1 - (5)
+
+```{r}
+
+c1 = c(0, 1, -1) ; C = rbind(c1) ; m = 0
+x_r1 = 2 * x1 + x2
+X_r = matrix(x_r1, nrow = length(x_r1)) ; y_r = y
+
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE)
+```
+
+#### 7.1 - (6)
+
+```{r}
+
+c1 = c(0, 1, 0) ; C = rbind(c1) ; m = 0
+x_r1 = 2 * x1 + x2
+X_r = matrix(x_r1, nrow = length(x_r1)) ; y_r = y
+
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE)
+```
+
+#### 7.1 - (7)
+
+```{r}
+
+x = c(1, 2, 3)
+Ey = t(x) %*% mult_res$beta_hat
+t_0 = (Ey - 4) / sqrt((t(x) %*% solve(mult_res$XtX) %*% x ) * MSE)
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE)
+
+print(glue("t_0 = {t_0}, t_alpha = {t_alpha}"))
+```
+
+#### 7.1 - (8)
+
+```{r}
+
+x = c(0, 0, 1)
+beta2hat = t(x) %*% mult_res$beta_hat
+t_0 = (beta2hat - 0) / sqrt((t(x) %*% solve(mult_res$XtX) %*% x ) * MSE)
+t_alpha = qt(0.05, n-p-1, lower.tail = FALSE)
+
+print(glue("t_0 = {t_0}, t_alpha = {t_alpha}"))
+```
+
+#### 7.1 - (9)
+
+```{r}
+
+c1 = c(0, 1, -2) ; C = rbind(c1) ; m = 0
+x_r1 = x1 + x2/2
+X_r = matrix(x_r1, nrow = length(x_r1)) ; y_r = y
+
+mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE)
+mult_test_res2 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "two", coef = TRUE)
+
+SSE_F = mult_test_res2$SSE_F ; SSE_F
+SSE_R = mult_test_res2$SSE_R ; SSE_R_h
+
+Q = mult_test_res1$Q ; Q
+```
+
+### 7.2
+
+```{r}
+x1 = c(10, 24, 25, 28, 15, 18, 22, 22, 12, 15) ; x2 = c(27, 26, 28, 26, 30, 24, 27, 25, 27, 25)
+x3 = c(64, 72, 80, 88, 81, 45, 46, 69, 54, 39)
+X = cbind(x1, x2, x3) ; y = c(2.8, 3.9, 3.9, 4.4, 3.1, 3.1, 3.5, 3.6, 3.0, 3.3)
+
+n = dim(X)[1] ; p = dim(X)[2]
+```
+
+#### 7.2 - (1)
+
+```{r}
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+MSE = mult_res$MSE
+a = c(0,0,0,1) ; beta3hat = t(a) %*% mult_res$beta_hat
+var_hat_beta3hat = t(a) %*% solve(mult_res$XtX) %*% a * MSE
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE)
+
+CI_lower = beta3hat - t_alpha * sqrt(var_hat_beta3hat)
+CI_upper = beta3hat + t_alpha * sqrt(var_hat_beta3hat)
+
+print(glue("beta3hat CI = ({CI_lower}, {CI_upper})"))
+```
+
+#### 7.2 - (2)
+
+```{r}
+a = c(0,1,0,0) ; beta1hat = t(a) %*% mult_res$beta_hat
+var_hat_beta1hat = t(a) %*% solve(mult_res$XtX) %*% a * MSE
+t_alpha = qt(0.005, n-p-1, lower.tail = FALSE)
+
+CI_lower = beta1hat - t_alpha * sqrt(var_hat_beta1hat)
+CI_upper = beta1hat + t_alpha * sqrt(var_hat_beta1hat)
+
+print(glue("beta1hat CI = ({CI_lower}, {CI_upper})"))
+```
+
+#### 7.2 - (3)
+
+```{r}
+x = c(1,20,27,60) ; yhat = t(x) %*% mult_res$beta_hat
+var_hat_yhat = t(x) %*% solve(mult_res$XtX) %*% x * MSE
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE)
+
+CI_lower = yhat - t_alpha * sqrt(var_hat_yhat)
+CI_upper = yhat + t_alpha * sqrt(var_hat_yhat)
+
+print(glue("yhat CI = ({CI_lower}, {CI_upper})"))
+```
+
+#### 7.2 - (4)
+
+```{r}
+a = c(0,1,0,0)
+beta1hat = t(a) %*% mult_res$beta_hat
+t_0 = (beta1hat - 0) / sqrt( t(a) %*% solve(mult_res$XtX) %*% a * MSE)
+t_alpha = qt(0.05, n-p-1, lower.tail = FALSE)
+
+print(glue("t_0 = {t_0}, t_alpha = {t_alpha}"))
+```
+
+#### 7.2 - (5)
+
+```{r}
+c1 = c(0,1,-1,0) ; c2 = c(0,0,1,-1)
+C = rbind(c1,c2) ; m = 0
+
+mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE)
+
+Q = mult_test_res1$Q ; Q
+```
+
+#### 7.2 - (6)
+
+```{r}
+c1 = c(0,1,-1,0)
+C = rbind(c1) ; m = 3
+mult_test_res1 = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE)
+
+Q = mult_test_res1$Q ; Q
+```
+
+#### 7.2 - (7)
+
+```{r}
+x = c(1, 20, 27, 60) ; yhat = t(x) %*% mult_res$beta_hat
+var_hat_yhat = t(x) %*% solve(mult_res$XtX) %*% x * MSE
+
+t_0  = (yhat - 3.5) / sqrt(var_hat_yhat) ; t_0
+t_alpha = qt(0.025, n-p-1, lower.tail = FALSE) ; t_alpha
+```
+
+#### 7.2 - (8)
+```{r}
+beta_tilde_est = function(C, m, X, y){
+  one = c(rep(1, n)) ; X = cbind(one, X)
+  XtX_inv = solve( t(X) %*% X )
+  beta_hat = XtX_inv %*% t(X) %*% y
+  print(glue("{dim(XtX_inv)}, {dim(t(C))}"))
+  
+  beta_tilde = beta_hat - XtX_inv %*% t(C) %*% solve(C %*% XtX_inv %*% t(C)) %*% (C %*% beta_hat - m)
+  
+  return(beta_tilde)
+}
+
+c1 = c(0, 1, -1, 0) ; c2 = c(0, 0, 1, -1) ; C = rbind(c1, c2)
+m1 = 0 ; m2 = 0 ; m = rbind(m1, m2)
+
+beta_tilde = beta_tilde_est(C, m, X, y) ; beta_tilde
+```
+
+#### 7.2- (9)
+
+```{r}
+c1 = c(0, 1, -1, 0) ; C = rbind(c1)
+m1 = 3 ; m = rbind(m1)
+
+beta_tilde = beta_tilde_est(C, m, X, y) ; beta_tilde
+```
+
+### 7.3
+
+```{r}
+x1 = c(10, 24, 25, 28, 15, 18, 22, 22, 12, 15)
+x2 = c(27, 26, 28, 26, 30, 24, 27, 25, 27, 25) ; x3 = c(64, 72, 80, 88, 81, 45, 46, 69, 54, 39)
+X = cbind(x1, x2, x3) ; y = c(2.8, 3.9, 3.9, 4.4, 3.1, 3.1, 3.5, 3.6, 3.0, 3.3)
+
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = FALSE)
+
+beta_hat = mult_res$beta_hat ; beta_hat
+
+MSE = mult_res$MSE ; n = dim(X)[1] ; p = dim(X)[2]
+```
+
+#### 7.3 - (1)
+
+```{r}
+a = c(0, 1, 0) ; beta2hat = t(a) %*% beta_hat
+var_hat_beta2hat = t(a) %*% solve(mult_res$XtX) %*% a * MSE
+t_alpha = qt(0.025, n-p, lower.tail = FALSE)
+
+CI_lower = beta2hat - t_alpha * sqrt(var_hat_beta2hat)
+CI_upper = beta2hat + t_alpha * sqrt(var_hat_beta2hat)
+
+print(glue("beta2hat CI = ({CI_lower},{CI_upper})"))
+
+```
+
+#### 7.3 - (2)
+
+```{r}
+c1 = c(0,1,0) ; C = rbind(c1) ; m1 = 0 ; m = rbind(m1)
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = FALSE)
+
+Q = mult_test_res$Q ; Q
+```
+
+#### 7.3 - (3)
+
+```{r}
+c1 = c(1, -1, 0) ; c2 = c(0, 1, -1) ; C = rbind(c1, c2) ; m1 = 0 ; m2 = 0 ; m = rbind(m1, m2)
+mult_test_res = mult_test(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = FALSE)
+
+Q = mult_test_res$Q ; Q
+```
+
+### 7.4
+
+```{r}
+y1 = c(2.0, 5.7, 4.5, 5.3) ; y2 = c(2.3, 4.8, 4.2, 5.5)
+x1 = c(-1, 1, -1, 1) ; x2 = c(-1, -1, 1, 1)
+ni = 2 ; k = length(x1)
+```
+
+#### 7.4 - (1)
+
+```{r}
+X0 = c(rep(1, ni * k)) ; X1 = c(rep(x1, 2)) ; X2 = c(rep(x2, 2)) ; 
+X = cbind(X0, X1, X2) ; Y = c(y1, y2)
+
+In = diag(1, ni * k) ; H = X %*% solve( t(X) %*% X) %*% t(X)
+yhat = H %*% Y ; yhat
+
+ybar_i = c(rep(0, k))
+for (i in 1:k){
+  ybar_i[i] = (y1[i] + y2[i])/2
+}
+
+SSPE = sum(y1^2 + y2^2) - sum(ni * ybar_i^2) ; SSPE
+SSLF = sum(ni * (ybar_i - yhat[1:k,])^2) ; SSLF
+
+
+SSE = t(Y) %*% (In - H) %*% Y ; SSE
+
+F_L = (SSLF / 1) / (SSPE / 4) ; F_L
+F_alpha = qf(0.05, 1, 4, lower.tail = FALSE) ; F_alpha
+```
+
+#### 7.4 - (2)
+
+```{r}
+e = (In - H) %*% Y ; yhat = H %*% Y ; X1 = X1 ; X2 = X2
+# par(mfrow=c(1, 3))
+plot(x = yhat, y = e, xlab = expression(hat(y)[i]), ylab = expression(e[i]), 
+     main = expression(paste("(a)", hat(y)[i], "에 대하여")))
+plot(x = X1, y = e, xlab = expression(x[i1]), ylab = expression(e[i]), 
+     main = expression(paste("(b)", x[i1], "에 대하여")))
+plot(x = X2, y = e, xlab = expression(x[i2]), ylab = expression(e[i]), 
+     main = expression(paste("(c)", x[i2], "에 대하여")))
+```
+
+#### 7.4 - (3)
+
+```{r}
+e = (In - H) %*% Y ; yhat = H %*% Y ; X1 = X1 ; X2 = X2
+
+## (a)
+sum(e)
+
+## (b)
+t(e) %*% yhat
+
+## (c)
+t(X1) %*% e
+
+## (d)
+t(X2) %*% e
+```
+
+### 7.5
+
+```{r}
+x1 = c(1, 2, 1, 3, 3, 3) ; x2 = c(1, 1, 2, 1, 2, 3)
+y = c(1, 5, 0, 4, 4, -1) ; X = cbind(x1, x2)
+
+n = length(x1) ; x0 = c(rep(1, n)) ; X = cbind(x0, X) ; In = diag(1, n) ; p = 2
+H = X %*% solve(t(X) %*% X) %*% t(X)
+
+e = (In - H) %*% y
+SSE = t(y) %*% e ; MSE = as.numeric(SSE/ (n-p-1))
+var_e = (In - H) ; var_e
+varhat_e = MSE * (In - H) ; varhat_e
+rho12 = var_e[1,2] / sqrt(var_e[1,1] * var_e[2,2]) ; rho12
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

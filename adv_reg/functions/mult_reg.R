@@ -14,9 +14,13 @@ mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
   if (!is.numeric(y)) {
     stop("y는 숫자형이어야 합니다.")
   }
+  
+  n = length(y) ; p = dim(X)[2]
+  In = diag(1, n)
+  
   if (coeff == TRUE){
-    n = length(y) ; p = dim(X)[2] - 1
-    one = c(rep(1,n)) ; In = diag(1, n) ; Jn_n = one %*% t(one) / n
+    one = c(rep(1,n)) ; Jn_n = one %*% t(one) / n
+    X = cbind(one, X)
     H = X %*% solve(t(X) %*% X) %*% t(X)
     XtX = t(X) %*% X ; Xty = t(X) %*% y
     beta_hat = solve(XtX) %*% Xty
@@ -32,8 +36,6 @@ mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
     F_0 = MSR/MSE ; F_alpha = qf(alpha, p, n-p-1, lower.tail = FALSE)
     
   }else{
-    n = length(y) ; p = dim(X)[2]
-    In = diag(1, n)
     H = X %*% solve(t(X) %*% X) %*% t(X)
     XtX = t(X) %*% X ; Xty = t(X) %*% y
     beta_hat = solve(XtX) %*% Xty
@@ -82,19 +84,16 @@ mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
 
 
 
-# CB = m 검정용 함수수
+# CB = m 검정용 함수
 mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = TRUE){
+  
+  ## n, p, In, k 설정정
+  n = dim(X)[1] ; p = dim(X)[2] ; k = dim(C)[1] ; In = diag(1, n)
   
   ## 방법 1, 절편이 있는 모형
   if (coef == TRUE & method == "one"){
-    n = dim(X)[1] ; p = dim(X)[2]
-    if (is.null(dim(C))){
-      k = 1
-    }else{
-      k = dim(C)[1]
-    }
     
-    x0 = c(rep(1, n)) ; X = cbind(x0, X) ; In = diag(1, n)
+    one = c(rep(1, n)) ; X = cbind(one, X)
     
     XtX_inv = solve(t(X) %*% X)
     H = X %*% XtX_inv %*% t(X)
@@ -104,11 +103,7 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     SSE = t(y) %*% (In - H) %*% y
     Cb_m = C %*% beta_hat - m
     
-    if (k == 1){
-      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% C) %*% (Cb_m)
-    }else{
-      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% t(C)) %*% (Cb_m)
-    }
+    Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% t(C)) %*% (Cb_m)
     
     F_0 = (Q/k) / (SSE / (n-p-1)) ; F_alpha = qf(alpha, k, n-p-1, lower.tail = FALSE)
     print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
@@ -119,14 +114,6 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     
     ## 방법 1, 절편이 없는 모형
   }else if (coef == FALSE & method == "one"){
-    n = dim(X)[1] ; p = dim(X)[2]
-    if (is.null(dim(C))){
-      k = 1
-    }else{
-      k = dim(C)[1]
-    }
-    
-    In = diag(1, n)
     
     XtX_inv = solve(t(X) %*% X)
     H = X %*% XtX_inv %*% t(X)
@@ -136,12 +123,7 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     SSE = t(y) %*% (In - H) %*% y
     Cb_m = C %*% beta_hat - m
     
-    if (k == 1){
-      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% C) %*% (Cb_m)
-    }else{
-      Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% t(C)) %*% (Cb_m)
-    }
-    
+    Q = t(Cb_m) %*% solve(C %*% XtX_inv %*% t(C)) %*% (Cb_m)
     
     F_0 = (Q/k) / (SSE / (n - p)) ; F_alpha = qf(alpha, k, n-p, lower.tail = FALSE)
     print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
@@ -152,14 +134,8 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     
     ## 방법 2, 절편이 있는 모형  
   }else if (coef == TRUE & method == "two"){
-    n = dim(X)[1] ; p = dim(X)[2]
-    if (is.null(dim(C))){
-      k = 1
-    }else{
-      k = dim(C)[1]
-    }
     
-    x0 = c(rep(1, n)) ; X = cbind(x0, X) ; In = diag(1, n)
+    one = c(rep(1, n)) ; X = cbind(one, X) ; X_r = cbind(one, X_r)
     
     XtX_inv = solve(t(X) %*% X)
     H = X %*% XtX_inv %*% t(X)
@@ -167,9 +143,9 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     X_rtX_r_inv = solve(t(X_r) %*% X_r)
     H_r = X_r %*% X_rtX_r_inv %*% t(X_r)
     
-    beta_hat = XtX_inv %*% t(X) %*% y_r
+    beta_hat = XtX_inv %*% t(X) %*% y
     
-    SSE_F = t(y_r) %*% (In - H) %*% y_r
+    SSE_F = t(y) %*% (In - H) %*% y
     SSE_R = t(y_r) %*% (In - H_r) %*% y_r
     
     F_0 = (SSE_R - SSE_F)/(k * SSE_F / (n-p-1)) ; F_alpha = qf(alpha, k, n-p-1, lower.tail = FALSE)
@@ -181,14 +157,6 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     
     ## 방법 2, 절편이 없는 모형    
   }else if (coef == FALSE & method == "two"){
-    n = dim(X)[1] ; p = dim(X)[2]
-    if (is.null(dim(C))){
-      k = 1
-    }else{
-      k = dim(C)[1]
-    }
-    
-    In = diag(1, n)
     
     XtX_inv = solve(t(X) %*% X)
     H = X %*% XtX_inv %*% t(X)
@@ -196,11 +164,16 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     X_rtX_r_inv = solve(t(X_r) %*% X_r)
     H_r = X_r %*% X_rtX_r_inv %*% t(X_r)
     
-    beta_hat = XtX_inv %*% t(X) %*% y_r
+    beta_hat = XtX_inv %*% t(X) %*% y
     
-    SSE_F = t(y_r) %*% (In - H) %*% y_r
+    one = c(rep(1,n)) ; In = diag(1, n) ; Jn_n = one %*% t(one) / n
+    
+    SSE_F = t(y) %*% (In - H) %*% y
     SSE_R = t(y_r) %*% (In - H_r) %*% y_r
+    SSR_R = t(y_r) %*% (H_r) %*% y_r
+    SST_R = t(y_r) %*% y_r
     
+    print(glue("SSE_R = {SSE_R}, SSE_F = {SSE_F}, SSR_R = {SSR_R}, SST_R = {SST_R}, SSE_R + SSR_R = {SSE_R + SSR_R}"))
     F_0 = (SSE_R - SSE_F)/(k * SSE_F / (n-p)) ; F_alpha = qf(alpha, k, n-p, lower.tail = FALSE)
     print(glue("F_0 = {F_0}, F_alpha = {F_alpha}"))
     
