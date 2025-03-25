@@ -1,0 +1,249 @@
+---
+title: "고급회귀분석 8장"
+output: html_document
+date: "2025-03-25"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+## 8.1 추가제곱합
+
+### (예 8.1)
+
+```{r}
+x1 = c(1,2,3,1,2,3) ; x2 = c(-1,-1,-1,1,1,1) ; x3 = c(-1,0,1,1,0,-1)
+y = c(7,8,10,15,18,26) ; X = cbind(x1,x2,x3) ; n = dim(X)[1] ; p = dim(X)[2] ; alpha = 0.05
+```
+
+#### (예 8.1) - (1)
+
+```{r}
+one = c(rep(1,n)) ; X = cbind(one, X)
+XtX_inv = solve(t(X) %*% X) ; Xty = t(X) %*% y ; yty = t(y) %*% y
+
+
+beta_hat = XtX_inv %*% Xty
+SSR = t(beta_hat) %*% Xty ; SSE = yty - t(beta_hat) %*% Xty ; SST = yty
+df_SSR = p + 1 ; df_SSE = n - p - 1 ; df_total = n
+MSR = SSR / df_SSR ; MSE = SSE / df_SSE
+F_0 = MSR / MSE ; F_alpha = qf(alpha, df_SSR, df_SSE, lower.tail = FALSE)
+
+anova_table = data.frame(
+  요인 = c("회귀", "잔차", "계"),
+  제곱합 = c(SSR, SSE, SST),
+  자유도 = c(df_SSR, df_SSE, df_total),
+  평균제곱합 = c(MSR, MSE, NA),
+  F_0 = c(F_0, NA, NA),
+  F_alpha = c(F_alpha, NA, NA)
+)
+beta_hat
+print(anova_table)
+```
+
+#### (예 8.1) - (2)
+
+```{r}
+beta_hat = XtX_inv %*% Xty ; X_R = X[,-c(2)] # X_R = X[,-c(2)] 와 X_R = X[,c(1, 3, 4)] 는 동일하다.
+beta_hat_R = solve(t(X_R) %*% X_R) %*% t(X_R) %*% y
+SS_F = t(beta_hat) %*% Xty
+SS_R = t(beta_hat_R) %*% t(X_R) %*% y
+
+SS_F - SS_R
+
+F_0 = ((SS_F - SS_R)/(p - 2)) / (MSE) ; F_0
+F_alpha = qf(alpha,p-2, n-p-1, lower.tail = FALSE) ; F_alpha
+```
+
+#### (예 8.1) - (3)
+
+```{r}
+library(glue)
+index = c(1,2)
+X_1 = X[,index] ; X_2 = X[, -index]
+
+beta1_hat = solve(t(X_1) %*% X_1) %*% t(X_1) %*% y
+beta2_hat = solve(t(X_2) %*% X_2) %*% t(X_2) %*% y
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y
+
+SS_beta1_hat = t(beta1_hat) %*% t(X_1) %*% y
+SS_beta2_hat = t(beta2_hat) %*% t(X_2) %*% y
+SS_beta_hat = t(beta_hat) %*% t(X) %*% y
+
+print(glue("SS_beta1_hat = {SS_beta1_hat}, SS_beta2_hat = {SS_beta2_hat}, SS_beta_hat = {SS_beta_hat}"))
+```
+
+#### (예 8.2)
+
+```{r}
+x1 = c(1,2,3,4,5,6,7) ; x2 = c(-1,-1,-1,1,1,1,0) ; x3 = c(-1,0,1,-1,0,1,0)
+y = c(7, 8, 10, 15, 18, 19, 14) ; X = cbind(x1,x2,x3) ; n = dim(X)[1] ; p = dim(X)[2]
+one = c(rep(1,n)) ; X = cbind(one, X)
+```
+
+```{r}
+x1bar = mean(x1) ; x2bar = mean(x2) ; x3bar = mean(x3) ; ybar = mean(y)
+S_11 = sum((x1 - x1bar)^2) ; S_22 = sum((x2 - x2bar)^2) ; S_33 = sum((x3 - x3bar)^2) ; S_yy = sum((y - ybar)^2)
+
+z1 = (x1 - x1bar)/sqrt(S_11) ; z2 = (x2 - x2bar)/sqrt(S_22) ; z3 = (x3 - x3bar)/sqrt(S_33) ; ystar = (y - ybar)/sqrt(S_yy)
+
+Z = cbind(z1,z2,z3) ; ZtZ = t(Z) %*% Z ; Ztystar = t(Z) %*% ystar
+
+Z
+
+ZtZ
+
+Ztystar
+
+alpha_hat = solve(ZtZ) %*% Ztystar ; alpha_hat
+
+temp = c(sqrt(S_yy / S_11), sqrt(S_yy / S_22), sqrt(S_yy / S_33))
+
+beta_hat = alpha_hat * as.vector(temp) ; beta_hat
+
+xbar = c(x1bar, x2bar, x3bar)
+
+beta0_hat = ybar - t(xbar) %*% beta_hat ; beta0_hat
+
+var_alpha_hat = solve(ZtZ) ; var_alpha_hat
+```
+
+#### (예 8.3)
+
+```{r}
+x = c(30, 20, 60, 80, 40, 50, 60, 30, 70, 60)
+y = c(73, 50, 128, 170, 97, 108, 135, 69, 148, 132)
+n = length(x) ; one = c(rep(1,n)) ; X = cbind(one, x) ; p = 1
+```
+
+```{r}
+beta_hat = solve(t(X) %*% X) %*% t(X) %*% y ; beta_hat
+SSE = t(y) %*% y - t(beta_hat) %*% t(X) %*% y ; SSE
+MSE = SSE/(n-p-1) ; MSE
+
+XtX = t(X) %*% X ; XtX
+F_alpha = qf(0.05, p+1, n-p-1, lower.tail = FALSE) ; F_alpha
+
+D = det(XtX) ; D
+
+XtX_inv = solve(XtX) ; XtX_inv
+
+var_hat_beta0_hat = XtX_inv[1,1] * MSE ; var_hat_beta0_hat
+cov_hat_beta0beta1_hat = XtX_inv[1,2] * MSE ; cov_hat_beta0beta1_hat
+var_hat_beta1_hat = XtX_inv[2,2] * MSE ; var_hat_beta1_hat
+
+# 타원에 해당하는 상수
+c_val <- (p + 1) * MSE * F_alpha
+
+# (XtX)^{-1}의 제곱근을 구하기 위해 고유분해 사용
+A <- solve(XtX)
+eig_A <- eigen(A)
+A_sqrt <- eig_A$vectors %*% diag(sqrt(eig_A$values)) %*% t(eig_A$vectors)
+
+# 0~2pi 범위의 각도 생성
+theta <- seq(0, 2 * pi, length.out = 100)
+# 각 theta에 대해 타원 위의 점 계산
+ellipse_coords <- t(sapply(theta, function(t) {
+  # cat("beta_hat", dim(beta_hat) ,"c_val",  dim(c_val) ,"A_sqrt", dim(A_sqrt))
+  beta_hat + as.numeric(sqrt(c_val)) * A_sqrt %*% c(cos(t), sin(t))
+}))
+
+# 타원과 중심(beta_hat) 그리기
+plot(ellipse_coords, type = "l", 
+     xlab = expression(beta[0]), ylab = expression(beta[1]),
+     main = "신뢰영역 (타원) for beta")
+points(beta_hat[1], beta_hat[2], col = "red", pch = 19)
+```
+
+## 8.6 R 실습
+
+### 8.6.1 추가제곱합
+
+6장의 연습문제 14번 자료로부터 다음의 모형을 적합해보자.
+
+\begin{equation*}
+  \text{Salary} = \beta_0 + \beta_1 \times \text{AtBat} + \beta_2 \times \text{Hits} + \beta_3 \times \text{HmRun} + \epsilon
+\end{equation*}
+
+이 모형에 대한 분산분석표를 작성하고 추가제곱합 $SS(\hat{\beta}_1 | \hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3)$와 $SS(\hat{\beta}_2 | \hat{\beta}_0, \hat{\beta}_1, \hat{\beta}_3)$ 를 구해보자. 먼저 중회귀 모형을 적합한 후의 분산분석표는 다음과 같다.
+
+```{r}
+library(ISLR)
+# install.packages("dplyr")
+library(dplyr)
+data(Hitters)
+Hitters = Hitters %>% na.omit() %>% select(AtBat, Hits, HmRun, Salary)
+
+fit <- lm(Salary ~ AtBat + Hits + HmRun, data = Hitters)
+anova(fit)
+```
+
+이와 같은 분산분석표에서 각 설명변수의 제곱합은 설명변수가 모형에 들어가는 순서에 따라 달라진다. 즉, 위 분산분석표에서 의미하는 변수 `AtBat`에 대한 제곱합은 $SS(\hat{\beta}_1 | \hat{\beta}_0) = 8309469$, 변수 `Hits`에 대한 제곱합은 $SS(\hat{\beta}_2 | \hat{\beta}_0, \hat{\beta}_1) = 2545894$, 그리고 변수 `HmRun`에 대한 제곱합은 $SS(\hat{\beta}_3 | \hat{\beta}_0, \hat{\beta}_1, \hat{\beta}_2) = 1254597$ 임을 의미한다. 이제 모형에 들어가는 설명변수의 순서를 다음과 같이 바꿔보자.
+
+```{r}
+fit2 <- lm(Salary ~ Hits + HmRun + AtBat, data = Hitters) # 설명변수 입력순서 바뀜
+anova(fit2)
+```
+
+`fit`과 `fit2`의 결과를 살펴보면, 같은 설명변수들에 대한 중회귀모형이지만 각 설명변수에 대한 추가제곱합이 모두 바뀌는 것을 알 수 있다. 이렇게 구한 추가제곱합을 '1종의 추가제곱합(Type 1 Sum of Squares(SS))'이라고 한다. 모형에 있는 설명변수의 순서와 상관없이 같은 1종의 추가제곱합을 얻는 경우는 앞서 살펴본것처럼 설명변수가 서로 직교할 때 뿐이다.
+
+이제 추가제곱합 $SS(\hat{\beta}_1 | \hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3)$를 구해보자. 이 추가제곱합은 `AtBat` 변수를 제외한 모든 설명변수들이 이미 모형에 포함되어 있고, `AtBat` 설명변수를 추가함으로써 증가하는 추가제곱합을 의미한다. 따라서 이 추가제곱합을 구하기 위해서는 전체 설명변수가 있는 모형과 축소모형으로부터
+
+\begin{align*}
+  SS(\hat{\beta}_1 | \hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3) 
+  & = SSE(\hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3) - SSE(\hat{\beta}_0, \hat{\beta}_1, \hat{\beta}_2, \hat{\beta}_3) \\
+  & = SSE(R) - SSE(F)
+\end{align*}
+
+의 관계를 통해 구할 수 있따. 이를 R을 통해 구해보면 다음과 같다.
+
+```{r}
+Reduced <- lm(Salary ~ Hits + HmRun, data = Hitters)
+anova(Reduced, fit)
+```
+
+여기서 축소모형의 $SSE(\hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3) = 42156439$, 완전모형의 $SSE(\hat{\beta}_0, \hat{\beta}_1, \hat{\beta}_2, \hat{\beta}_3) = 41209153$ 으로 $SS(\hat{\beta}_1 | \hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3) = 947286$ 이 됨을 알 수 있다.또한 이러한 추가제곱합은 $\beta_1 = 0$ 에 관한 검정결과를 알려주는데, 유의수준 5%에서 1986년도의 타석수는 1987년도 연봉에 유의한 영향이 있다고 말할 수 있다. 한편 이러한 제곱합은 '2종 또는 3종의 추가제곱합 (Type 2 또는 Type 3)'라고 부를 수 있는데, 2종과 3종의 차이는 교호작용을 다루지 않는 경우와 다루는 경우라고 볼 수 있다. 이와 관련된 자세한 사항은 참고문헌 (8.4)와 (8.5)를 참고하기 바란다. 여기서는 교호작용을 다루고 있지 않기 때문에 2종의 추가제곱합과 3종의 추가제곱합은 같은 결과를 주게 된다. 이러한 추가제곱합은 `car`패키지의 `Anova()`함수를 통해 축소모형의 적합 없이 구할 수 있다.
+
+```{r}
+library(car)
+Anova(lm(Salary ~ AtBat + Hits + HmRun, data = Hitters), type = "II")
+```
+
+즉 이때의 제곱합은 각 설명변수에 대한 추가제곱합으로 $SS(\hat{\beta}_1 | \hat{\beta}_0, \hat{\beta}_2, \hat{\beta}_3) = 947286$, $SS(\hat{\beta}_2 | \hat{\beta}_0, \hat{\beta}_1, \hat{\beta}_3) = 2617625$, $SS(\hat{\beta}_3 | \hat{\beta}_0, \hat{\beta}_1, \hat{\beta}_2) = 1254597$ 을 나타낸다.
+
+### 8.6.2 공동신뢰영역과 동시신뢰영역
+
+이제 다음의 단순회귀모형에서 회귀계수 벡터에 대한 공동신뢰영역(joint confidence region)과 동시신뢰영역(simultaneous confidence region)을 구해보자.
+
+\begin{equation*}
+  \text{Salary} = \beta_0 + \beta_1 \times \text{HmRun} + \epsilon
+\end{equation*}
+
+먼저 위의 단순회귀모형을 적합한 후에 `ellipsis` 패키지의 `ellipse()`함수를 사용하여 공동신뢰영역을 다음과 같이 그릴 수 있다.
+
+그리고 본페로니 방법을 이용한 공동신뢰구간, 즉 사각형의 영역을 공동신뢰영역에 붉은색으로 표현하면 다음과 같이 된다.
+
+```{r}
+library(ellipse)
+lm.fit <- lm(Salary ~ HmRun, data = Hitters)
+# 100 (1-alpha)% 공동신뢰영역(joint confidence region)
+alpha <- 0.05
+joint_conf <- ellipse(lm.fit, which = c(1,2), level = 1 - alpha)
+plot(joint_conf, type = "l", col = "blue", lwd = 2,
+     xlim = c(200, 450), ylim = c(5, 30), cex.main = 1.5,
+     xlab = "Intercept", ylab = "HmRun",
+     main = "Joint and Simultaneous Confidence Regions")
+points(lm.fit$coefficients[1], lm.fit$coefficients[2],
+       lwd = 3, pch = 4, col = "blue")
+
+# 본페로니 동시 신뢰구간
+Bonferroni_conf = confint(lm.fit, level = 1 - alpha/2)
+int_lower = Bonferroni_conf[1, 1]
+int_upper = Bonferroni_conf[1, 2]
+HmRun_lower = Bonferroni_conf[2, 1]
+HmRun_upper = Bonferroni_conf[2, 2]
+# Bonferroni simultaneous confidence interval for beta_0
+abline(v = c(int_lower, int_upper), col = "red", lwd = 2)
+# Bonferroni simultaneous confidence interval for beta_1
+abline(h = c(HmRun_lower, HmRun_upper), col = "red", lwd = 2)
+```
