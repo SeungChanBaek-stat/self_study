@@ -247,3 +247,293 @@ abline(v = c(int_lower, int_upper), col = "red", lwd = 2)
 # Bonferroni simultaneous confidence interval for beta_1
 abline(h = c(HmRun_lower, HmRun_upper), col = "red", lwd = 2)
 ```
+
+## 연습문제
+
+### 8.2
+
+```{r}
+x1 = c(195, 179, 205, 204, 201, 184, 210, 209) ; x2 = c(57, 61, 60, 62, 61, 54, 58, 61)
+y = c(81.4, 122.2, 101.7, 175.6, 150.3, 64.8, 92.1, 113.8) ; X = cbind(x1, x2)
+
+```
+
+#### 8.2 - (1)
+
+```{r}
+source("functions/mult_reg.R", echo=TRUE)
+
+SS_beta1_hat = ASS_calc(X = X, y = y, index_sol = c(1), index_given = NA, coef = TRUE)
+SS_beta1_beta0_hat = ASS_calc(X = X, y = y, index_sol = c(1), index_given = c(0), coef = TRUE)
+SS_beta1_beta0beta2_hat = ASS_calc(X = X, y = y, index_sol = c(1), index_given = c(0,2), coef = TRUE)
+```
+
+#### 8.2 - (2)
+
+```{r}
+alpha = 0.05 ; n = length(y) ; p = dim(X)[2]
+mult_res = mult_reg(X, y)
+MSE = mult_res$MSE ; MSE
+
+F_0 = SS_beta1_beta0beta2_hat / MSE
+F_alpha = qf(alpha, 1, n-p-1, lower.tail = FALSE)
+F_0 ; F_alpha
+```
+
+
+#### 8.2 - (3)
+
+```{r}
+alpha = 0.05 ; n = length(y) ; p = dim(X)[2]
+mult_res = mult_reg(X, y)
+MSE = mult_res$MSE
+
+SS_beta2_beta0beta1_hat = ASS_calc(X = X, y = y, index_sol = c(2), index_given = c(0,1), coef = TRUE)
+
+F_0 = SS_beta2_beta0beta1_hat / MSE ; F_alpha = qf(alpha, 1, n-p-1, lower.tail = FALSE)
+F_0 ; F_alpha
+
+SS_beta2_beta0_hat = ASS_calc(X = X, y = y, index_sol = c(2), index_given = c(0), coef = TRUE)
+
+F_0 = SS_beta2_beta0_hat / MSE ; F_alpha = qf(alpha, 1, n-p-1, lower.tail = FALSE)
+F_0 ; F_alpha
+```
+
+### 8.4
+
+```{r}
+x1 = c(10, 24, 25, 28, 15, 18, 22, 22, 12, 15)
+x2 = c(27, 26, 28, 26, 30, 24, 27, 25, 27, 25) ; x3 = c(64, 72, 80, 88, 81, 45, 46, 69, 54, 39)
+X = cbind(x1, x2, x3) ; y = c(2.8, 3.9, 3.9, 4.4, 3.1, 3.1, 3.5, 3.6, 3.0, 3.3)
+```
+
+#### 8.4 - (1)
+
+```{r}
+standard_res = standard_calc(X, y)
+
+Z = standard_res$Z ; ystar = standard_res$ystar
+
+alpha_hat = solve(t(Z) %*% Z) %*% t(Z) %*% ystar ; alpha_hat
+```
+
+#### 8.4 - (2)
+
+```{r}
+corr_matrix = t(Z) %*% Z ; corr_matrix
+```
+
+#### 8.4 - (3)
+
+```{r}
+S_jj = standard_res$S_jj ; S_yy = standard_res$S_yy ; xbar = standard_res$xbar ; ybar = standard_res$ybar
+
+beta_hat = alpha_hat * sqrt(S_yy / S_jj) ; beta_hat
+beta0_hat = ybar - t(xbar) %*% beta_hat ; beta0_hat
+```
+
+### 8.5
+
+```{r}
+x_0 = c(rep(1, 14)) ; x_1 = c(3, 1, 5, 8, 1, 4, 2, 6, 9, 3, 5, 7, 2, 6)
+y = c(39, 24, 115, 105, 50, 86, 67, 90, 140, 112, 70, 186, 43, 126)
+n = length(x_0) ; X = cbind(x_0, x_1) ; p = dim(X)[2] - 1 ; alpha = 0.05
+
+
+XtX = t(X) %*% X
+beta_hat = solve(XtX) %*% t(X) %*% y ; beta_hat
+
+SSE = t(y) %*% y - t(beta_hat) %*% t(X) %*% y
+MSE = SSE / (n - p - 1)
+F_alpha = qf(alpha, p+1, n-p-1, lower.tail = FALSE)
+
+
+
+
+# 타원에 해당하는 상수
+c_val <- (p + 1) * MSE * F_alpha
+
+# (XtX)^{-1}의 제곱근을 구하기 위해 고유분해 사용
+A <- solve(XtX)
+eig_A <- eigen(A)
+A_sqrt <- eig_A$vectors %*% diag(sqrt(eig_A$values)) %*% t(eig_A$vectors)
+
+# 0~2pi 범위의 각도 생성
+theta <- seq(0, 2 * pi, length.out = 100)
+# 각 theta에 대해 타원 위의 점 계산
+ellipse_coords <- t(sapply(theta, function(t) {
+  # cat("beta_hat", dim(beta_hat) ,"c_val",  dim(c_val) ,"A_sqrt", dim(A_sqrt))
+  beta_hat + as.numeric(sqrt(c_val)) * A_sqrt %*% c(cos(t), sin(t))
+}))
+
+# 타원과 중심(beta_hat) 그리기
+plot(ellipse_coords, type = "l", 
+     xlab = expression(beta[0]), ylab = expression(beta[1]),
+     main = "신뢰영역 (타원) for beta")
+points(beta_hat[1], beta_hat[2], col = "red", pch = 19)
+
+```
+
+### 8.6
+
+```{r}
+x1 = c(195, 179, 205, 204, 201, 184, 210, 209) ; x2 = c(57, 61, 60, 62, 61, 54, 58, 61)
+y = c(81.4, 122.2, 101.7, 175.6, 150.3, 64.8, 92.1, 113.8) ; X = cbind(x1, x2)
+n = dim(X)[1] ; p = dim(X)[2] ; alpha = 0.1
+
+mult_res = mult_reg(X, y, coeff = FALSE)
+
+beta_hat = mult_res$beta_hat ; XtX = mult_res$XtX ; MSE = mult_res$MSE
+
+beta_hat ; MSE
+
+F_alpha = qf(alpha, p, n-p, lower.tail = FALSE)
+
+
+# 타원에 해당하는 상수
+c_val <- (p + 1) * MSE * F_alpha
+
+# (XtX)^{-1}의 제곱근을 구하기 위해 고유분해 사용
+A <- solve(XtX)
+eig_A <- eigen(A)
+A_sqrt <- eig_A$vectors %*% diag(sqrt(eig_A$values)) %*% t(eig_A$vectors)
+
+# 0~2pi 범위의 각도 생성
+theta <- seq(0, 2 * pi, length.out = 100)
+# 각 theta에 대해 타원 위의 점 계산
+ellipse_coords <- t(sapply(theta, function(t) {
+  # cat("beta_hat", dim(beta_hat) ,"c_val",  dim(c_val) ,"A_sqrt", dim(A_sqrt))
+  beta_hat + as.numeric(sqrt(c_val)) * A_sqrt %*% c(cos(t), sin(t))
+}))
+
+# 타원과 중심(beta_hat) 그리기
+plot(ellipse_coords, type = "l", 
+     xlab = expression(beta[1]), ylab = expression(beta[2]),
+     main = "신뢰영역 (타원) for beta")
+points(beta_hat[1], beta_hat[2], col = "red", pch = 19)
+```
+
+### 8.7
+
+```{r}
+x11 = c(4, 8, 9, 8, 8, 12, 6, 10, 6, 9) ; x12 = c(4, 10, 8, 5, 10, 15, 8, 13, 5, 12)
+y1 = c(9, 20, 22, 15, 17, 30, 18, 25, 10, 20) ; X1 = cbind(x11, x12)
+
+x21 = c(13, 10, 9, 15, 12, 14, 10, 7, 8, 7) ; x22 = c(12, 8, 8, 14, 13, 10, 8, 7, 10, 9)
+y2 = c(25, 20, 18, 35, 30, 32, 27, 20, 20, 19) ; X2 = cbind(x21, x22)
+
+x1 = c(x11, x21) ; x2 = c(x12, x22) ; y = c(y1, y2) ; X = cbind(x1, x2)
+
+n1 = dim(X1)[1] ; p = dim(X2)[2] ; n2 = dim(X2)[1] ; n = n1+n2
+```
+
+#### 8.7 - (1)
+
+```{r}
+full_model1 = mult_reg(X1, y1, alpha = 0.05, coeff = TRUE)
+full_model2 = mult_reg(X2, y2, alpha = 0.05, coeff = TRUE)
+Reduced_model = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+
+SSE_1 = full_model1$SSE ; SSE_2 = full_model2$SSE
+SSE_F = SSE_1 + SSE_2 ; SSE_R = Reduced_model$SSE
+
+df_F = n - 2*p - 2 ; df_R = n - p - 1 ; alpha = 0.05
+
+F_0 = ((SSE_R - SSE_F)/(df_R - df_F)) / (SSE_F / df_F)
+F_alpha = qf(alpha, df_R - df_F, df_F, lower.tail = FALSE)
+
+F_0 ; F_alpha
+```
+
+#### 8.7 - (2)
+
+```{r}
+SS_1_02 = ASS_calc(X2, y2, index_sol = c(1), index_given = c(0, 2), coef = TRUE)
+SS_2_01 = ASS_calc(X2, y2, index_sol = c(2), index_given = c(0, 1), coef = TRUE)
+```
+
+#### 8.7 - (3)
+
+```{r}
+beta2_hat = full_model2$beta_hat ; MSE2 = full_model2$MSE 
+X2tX2 = full_model2$XtX ; F_alpha = qf(0.1, p+1, n2 - p - 1, lower.tail = FALSE)
+
+beta2_hat ; MSE2 ; X2tX2 ; F_alpha
+
+beta2_null = c(0,2,1)
+
+Tbeta2 = t(beta2_null - beta2_hat) %*% X2tX2 %*% (beta2_null - beta2_hat) - (p+1) * MSE2 * F_alpha
+Tbeta2
+```
+
+#### 8.7 - (4)
+
+```{r}
+R2_A = full_model1$SSR / full_model1$SST ; R2_B = full_model2$SSR / full_model2$SST
+
+R2_A ; R2_B
+```
+
+### 8.10
+
+#### 8.10 - (1)
+
+```{r}
+x1 = c(1,2,3,1,2,3) ; x2 = c(-1,-1,-1,1,1,1) ; x3 = c(-1,0,1,1,0,-1)
+y = c(7,8,10,15,18,26) ; X = cbind(x1,x2,x3) ; n = dim(X)[1] ; p = dim(X)[2] ; alpha = 0.05
+```
+
+```{r}
+source("functions/mult_reg.R")
+one = c(rep(1,n)) ; X = cbind(one, X)
+XtX_inv = solve(t(X) %*% X) ; Xty = t(X) %*% y ; yty = t(y) %*% y
+
+
+beta_hat = XtX_inv %*% Xty
+SSR = t(beta_hat) %*% Xty ; SSE = yty - t(beta_hat) %*% Xty ; SST = yty
+df_SSR = p+1 ; df_SSE = n-p-1 ; df_total = n
+MSR = SSR / df_SSR ; MSE = SSE / df_SSE
+F_0 = MSR / MSE ; F_alpha = qf(alpha, df_SSR, df_SSE, lower.tail = FALSE)
+
+anova_table = data.frame(
+  요인 = c("회귀", "잔차", "계"),
+  제곱합 = c(SSR, SSE, SST),
+  자유도 = c(df_SSR, df_SSE, df_total),
+  평균제곱합 = c(MSR, MSE, NA),
+  F_0 = c(F_0, NA, NA),
+  F_alpha = c(F_alpha, NA, NA)
+)
+beta_hat
+print(anova_table)
+```
+
+```{r}
+x1 = c(1,2,3,1,2,3) ; x2 = c(-1,-1,-1,1,1,1) ; x3 = c(-1,0,1,1,0,-1)
+y = c(7,8,10,15,18,26) ; X = cbind(x1,x2,x3) ; n = dim(X)[1] ; p = dim(X)[2] ; alpha = 0.05
+
+
+SS_1_023 = ASS_calc(X = X, y = y, index_sol = c(1), index_given = c(0,2,3), coef = TRUE)
+SS_1_02 = ASS_calc(X = X, y = y, index_sol = c(1), index_given = c(0,2), coef = TRUE)
+```
+
+#### 8.10 - (2)
+
+```{r}
+x1 = c(1,2,3,4,5,6,7) ; x2 = c(-1,-1,-1,1,1,1,0) ; x3 = c(-1,0,1,-1,0,1,0)
+y = c(7, 8, 10, 15, 18, 19, 14) ; X = cbind(x1,x2,x3) ; n = dim(X)[1] ; p = dim(X)[2]
+
+standard_res = standard_calc(X, y)
+
+Z = standard_res$Z ; ystar = standard_res$ystar ; xbar = standard_res$xbar ; ybar = standard_res$ybar
+S_jj = standard_res$S_jj ; S_yy = standard_res$S_yy
+
+alpha_hat = solve(t(Z) %*% Z) %*% t(Z) %*% ystar ; alpha_hat
+
+corr_xx = t(Z) %*% Z ; corr_xx
+
+corr_xy = t(Z) %*% ystar ; corr_xy
+
+
+```
+
+

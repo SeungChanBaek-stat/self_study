@@ -22,3 +22,12 @@ solve(t(X) %*% X)
 
 C %*% solve(t(X) %*% X) %*% t(C)
 diag(1, 4) - X %*% solve(t(X) %*% X) %*% t(X)
+
+
+index_sol = c(1) ; index_given = c(0,2) ; index_test = NA
+
+length(index_sol) ; length(index_given) ; length(index_test)
+
+index_full <- sort(union(index_sol, index_given)) ; index_full
+
+cbind(index_sol, index_given)

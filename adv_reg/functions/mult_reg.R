@@ -1,5 +1,5 @@
 
-
+#######################################################################################
 
 # 중회귀에서의 분산분석용 함수
 mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
@@ -80,7 +80,7 @@ mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
 
 
 
-
+#######################################################################################
 
 
 
@@ -179,4 +179,63 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
     
     return(list(SSE_F = SSE_F, SSE_R = SSE_R, F_0 = F_0, F_alpha = F_alpha))
   }
+}
+
+#######################################################################################
+
+
+ASS_calc = function(X, y, index_sol, index_given = NA, coef = TRUE){
+  n = dim(X)[1] ; p = dim(X)[2]
+  if (coef == TRUE){
+    one = c(rep(1,n)) ; X = cbind(one, X)
+  }
+  if (all(is.na(index_given))){
+    index_sol = index_sol + 1
+    X_sol = X[,index_sol]
+    SS = t(y) %*% X_sol %*% solve(t(X_sol) %*% X_sol) %*% t(X_sol) %*% y
+    
+    print(glue("SS({paste0('beta_', index_sol - 1, collapse = ', ')}) = {SS}"))
+    return(SS)
+    
+  }else{
+    index_sol = index_sol + 1 ; index_given = index_given + 1
+    index_full <- sort(union(index_sol, index_given))
+    X_F = X[,index_full] ; X_G = X[,index_given]
+    SS_F = t(y) %*% X_F %*% solve(t(X_F) %*% X_F) %*% t(X_F) %*% y
+    SS_G = t(y) %*% X_G %*% solve(t(X_G) %*% X_G) %*% t(X_G) %*% y
+    
+    SS = SS_F - SS_G
+    
+    # print(glue("SS(beta_{index_sol - 1} | beta_{paste(index_given - 1, collapse = ', ')}) = {SS}"))
+    print(glue("SS({paste0('beta_', index_sol - 1, collapse = ', ')} | {paste0('beta_', index_given - 1, collapse = ', ')}) = {SS}"))
+    return(SS)
+  }
+}
+
+
+#######################################################################################
+
+standard_calc = function(X, y){
+  n = dim(X)[1] ; p = dim(X)[2]
+  
+  xbar = c(rep(0, p))
+  for (j in 1:p){
+    xbar[j] = mean(X[,j])
+  }
+  
+  S_jj = c(rep(0, p))
+  for (j in 1:p){
+    S_jj[j] = sum((X[,j] - xbar[j])^2)
+  }
+  
+  ybar = mean(y) ; S_yy = sum((y - ybar)^2)
+  
+  Z = matrix(NA, nrow = n, ncol = p)
+  for (j in 1:p){
+    Z[,j] =  (X[,j] - xbar[j]) / sqrt(S_jj[j])
+  }
+  
+  ystar = (y - ybar) / sqrt(S_yy)
+  
+  return(list(Z = Z, ystar = ystar, xbar = xbar, ybar = ybar, S_jj = S_jj, S_yy = S_yy))
 }
