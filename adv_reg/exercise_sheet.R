@@ -31,3 +31,13 @@ length(index_sol) ; length(index_given) ; length(index_test)
 index_full <- sort(union(index_sol, index_given)) ; index_full
 
 cbind(index_sol, index_given)
+
+1.544
+
+A = matrix(c(2*16.50, 2*17.20, 6.99, 6.99), nrow = 2) ; y = c(16.48, 3.38)
+
+x = solve(A) %*% y ; x
+
+A %*% x
+
+x = solve(A, y) ; x

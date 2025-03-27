@@ -239,3 +239,49 @@ standard_calc = function(X, y){
   
   return(list(Z = Z, ystar = ystar, xbar = xbar, ybar = ybar, S_jj = S_jj, S_yy = S_yy))
 }
+
+
+
+#######################################################################################
+
+
+ortho_poly = function(X, k, coef = TRUE){
+  library(glue)
+  n = dim(X)[1] ; p = dim(X)[2] ; d = X[2,1] - X[1,1]
+  
+  ## 설명변수의 간격 체크
+  for (i in 1:(n-1)){
+    temp_d = X[i+1,1] - X[i,1]
+    if (temp_d != d){
+      cat("설명변수 x의 수준이 같은 간격으로 떨어져있지 않습니다.")
+      return( )
+    }
+  }
+  
+  ## 절편항 추가
+  if (coef == TRUE){    one = c(rep(1, n)) ; X = cbind(one, X)  }
+  
+  ## 직교다항행렬 X_p 생성
+  X_p = matrix(NA, nrow = n, ncol = k + 1)
+  
+  xbar = mean(X[,2])
+  X_p[,1] = 1
+  X_p[,2] = (X[,2] - xbar)/d
+  
+  if (k == 1){
+    colnames(X_p)= c("one","x^1")
+    return(X_p)
+  }else{
+    colname_vec = c(rep("1", k+1))
+    colname_vec[1] = "one"
+    
+    for (r in 2:k){
+      X_p[ ,r+1] = X_p[ ,r] * X_p[ ,2] - ((r-1)^2 * (n^2 - (r-1)^2))/(4 * (4*(r-1)^2 - 1)) * X_p[,r-1] 
+      colname_vec[r] = glue("x^{r-1}")
+    }
+    colname_vec[k+1] = glue("x^{k}")
+    
+    colnames(X_p)= colname_vec
+    return(X_p)
+  }
+}
