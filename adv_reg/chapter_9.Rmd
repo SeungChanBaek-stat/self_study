@@ -342,14 +342,223 @@ x = c(100, 110, 120, 130, 140, 150, 160, 170)
 y = c(20, 24, 27, 28, 29, 29, 28, 27)
 
 X = cbind(x)
+```
+
+### 9.3 - (1)
+
+```{r}
+X_p = ortho_poly(X, k = 2, coef = TRUE)
+
+X_p = X_p[, -c(1)]
+
+mult_res = mult_reg(X_p, y, alpha = 0.05, coeff = TRUE) ; MSE = mult_res$MSE
+
+SS_beta1_02 = ASS_calc(X_p, y, index_sol = c(1), index_given = c(0,2), coef = TRUE)
+SS_beta2_01 = ASS_calc(X_p, y, index_sol = c(2), index_given = c(0,1), coef = TRUE)
+
+SS_beta1_02 ; SS_beta2_01
+
+SS_beta1_02/MSE ; SS_beta2_01/MSE  
+
+beta_hat = mult_res$beta_hat ; beta_hat
+
+F_alpha_1 = qf(0.05, 1, 5, lower.tail = FALSE) ; F_alpha_1
+```
+
+### 9.3 - (2)
+
+```{r}
+X_p_3 = ortho_poly(X, k = 3, coef = TRUE)
+
+X_p_3 = X_p_3[, -c(1)]
+
+mult_res = mult_reg(X_p_3, y, alpha = 0.05, coeff = TRUE) ; MSE = mult_res$MSE
+
+SS_beta1_023 = ASS_calc(X_p_3, y, index_sol = c(1), index_given = c(0,2,3), coef = TRUE)
+SS_beta2_013 = ASS_calc(X_p_3, y, index_sol = c(2), index_given = c(0,1,3), coef = TRUE)
+SS_beta3_012 = ASS_calc(X_p_3, y, index_sol = c(3), index_given = c(0,1,2), coef = TRUE)
+
+SS_beta1_023 ; SS_beta2_013 ; SS_beta3_012
+
+SS_beta1_023/MSE ; SS_beta2_013/MSE ; SS_beta3_012/MSE  
+
+beta_hat = mult_res$beta_hat ; beta_hat
+
+F_alpha_1 = qf(0.05, 1, 4, lower.tail = FALSE) ; F_alpha_1
+```
+
+```{r}
+## 4차항도 필요한지 검토
+X_p_4 = ortho_poly(X, k = 4, coef = TRUE)
+
+X_p_4 = X_p_4[, -c(1)]
+
+mult_res = mult_reg(X_p_4, y, alpha = 0.05, coeff = TRUE) ; MSE = mult_res$MSE
+
+SS_beta1_0234 = ASS_calc(X_p_4, y, index_sol = c(1), index_given = c(0,2,3,4), coef = TRUE)
+SS_beta2_0134 = ASS_calc(X_p_4, y, index_sol = c(2), index_given = c(0,1,3,4), coef = TRUE)
+SS_beta3_0124 = ASS_calc(X_p_4, y, index_sol = c(3), index_given = c(0,1,2,4), coef = TRUE)
+SS_beta4_0123 = ASS_calc(X_p_4, y, index_sol = c(4), index_given = c(0,1,2,3), coef = TRUE)
+
+SS_beta1_0234 ; SS_beta2_0134 ; SS_beta3_0124 ; SS_beta4_0123
+
+SS_beta1_0234/MSE ; SS_beta2_0134/MSE ; SS_beta3_0124/MSE ; SS_beta4_0123/MSE
+
+beta_hat = mult_res$beta_hat ; beta_hat
+
+F_alpha_1 = qf(0.05, 1, 3, lower.tail = FALSE) ; F_alpha_1
+```
+
+### 9.3 - (3)
+
+```{r}
+x = c(100, 110, 120, 130, 140, 150, 160, 170)
+y = c(20, 24, 27, 28, 29, 29, 28, 27)
+
+X = cbind(x)
 
 X_p = ortho_poly(X, k = 2, coef = TRUE)
 
 X_p = X_p[, -c(1)]
 
-mult_res = mult_reg(X_p, y, alpha = 0.05, coeff = TRUE)
+mult_res = mult_reg(X_p, y, alpha = 0.05, coeff = TRUE) ; MSE = mult_res$MSE
+beta_hat = mult_res$beta_hat
 
-beta_hat = mult_res$beta_hat ; beta_hat
+beta_0 = beta_hat[1] ; beta_1 = beta_hat[2] ; beta_2 = beta_hat[3]
+
+plot(x, y, xlab = "x(비료의 양)", ylab = "y(수확량)", cex = 0.5, pch = 19,
+     main = "2차 직교다항회귀 모형", col = "red")
+curve(beta_hat[1] + beta_hat[2] * ((x-135)/10) + beta_hat[3] * (((x-135)/10)^2 - 63/12) , n = 101, add = TRUE, col = "lightblue", lwd = 3)
 ```
 
+### 9.3 - (4)
 
+```{r}
+solve(mult_res$XtX) * MSE
+```
+
+## 9.4
+
+```{r}
+x = c(1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10)
+y = c(0.10, 0.09, 0.15, 0.16, 0.19, 0.19, 0.23, 0.22, 0.23, 0.24,
+      0.25, 0.25, 0.27, 0.26, 0.28, 0.28, 0.28, 0.29, 0.30, 0.31)
+```
+
+### 9.4 - (1)
+
+```{r}
+plot(x, y, xlab = "나이", ylab = "y(키와 몸무게의 비kg/cm)", cex = 0.5, pch = 19)
+```
+
+### 9.4 - (2)
+
+```{r}
+n = length(x)
+T1_x_4 = c(rep(1,n))
+for (i in 1:n){
+  if (x[i] - 4 < 0){
+    T1_x_4[i] = 0
+  }else{
+    T1_x_4[i] = x[i] - 4
+  }
+}
+
+X = cbind(x, T1_x_4)
+
+mult_res_2 = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+beta_hat_2 = mult_res_2$beta_hat ; beta_hat_2
+
+SSR = mult_res_2$SSR ; SST = mult_res_2$SST
+R2 = SSR/SST ; R2
+```
+
+### 9.4 - (3), (4)
+
+```{r}
+T2_x_4 = T1_x_4^2
+X = cbind(x, T2_x_4)
+
+mult_res_3 = mult_reg(X, y, alpha = 0.05, coeff = TRUE) ; beta_hat_3 = mult_res_3$beta_hat
+
+beta_hat_3 ; R2 = mult_res_3$SSR / mult_res_3$SST ; R2
+```
+
+### 9.4 - (5)
+
+```{r}
+x2 = x^2 ; X = cbind(x, x2)
+
+mult_res_5 = mult_reg(X, y, alpha = 0.05, coeff = TRUE) ; beta_hat_5 = mult_res_5$beta_hat
+
+beta_hat_5 ; R2 = mult_res_5$SSR/ mult_res_5$SST ; R2
+```
+
+### 9.4 - (6)
+
+```{r}
+plot(x, y, xlab = "나이", ylab = "y(키와 몸무게의 비kg/cm)",
+     main = "다항회귀모형", cex = 0.5, pch = 19)
+
+# 접합점 전 구간: x < 4
+x_min <- min(x)    # 예: 1
+x_knot <- 4
+y_min <- beta_hat_2[1] + beta_hat_2[2] * x_min
+y_knot <- beta_hat_2[1] + beta_hat_2[2] * x_knot
+
+segments(x_min, y_min, x_knot, y_knot, col = "blue", lwd = 2)
+
+# 접합점 후 구간: x >= 4
+x_max <- max(x)    # 예: 10
+# x>=4인 구간의 회귀식은 y = beta_hat_2[1] + beta_hat_2[2]*x + beta_hat_2[3]*(x - 4)
+y_knot2 <- beta_hat_2[1] + beta_hat_2[2] * x_knot  # x=4에서의 y값 (두 식이 같아야 함)
+y_max <- beta_hat_2[1] + beta_hat_2[2] * x_max + beta_hat_2[3] * (x_max - 4)
+
+segments(x_knot, y_knot2, x_max, y_max, col = "blue", lwd = 2)
+
+curve(ifelse(x < 4,
+             beta_hat_3[1] + beta_hat_3[2] * x,
+             beta_hat_3[1] + beta_hat_3[2] * x + beta_hat_3[3] * (x - 4)^2),
+      from = min(x), to = max(x), n = 101, add = TRUE, col = "green", lwd = 2)
+curve(beta_hat_5[1] + beta_hat_5[2] * x + beta_hat_5[3] * x^2,
+      from = min(x), to = max(x), n = 101, add = TRUE, col = "lightblue", lwd = 2)
+
+legend("bottomright",
+       legend = c("관측치", "1차-1차 회귀모형", "1차-2차 회귀모형", "2차 회귀모형"),
+       col = c("black", "blue", "green", "lightblue"),
+       pch = c(19, NA, NA, NA),
+       lty = c(NA, 1, 1, 1),
+       lwd = c(NA, 2, 2, 2),
+       bty = "n")
+
+```
+
+### 9.10
+
+```{r}
+library(ISLR)
+library(dplyr)
+data(Auto)
+
+dataset  = Auto %>% na.omit %>% select(horsepower,mpg)
+x = dataset$horsepower ; y = dataset$mpg
+```
+
+#### 9.10 - (1)
+
+```{r}
+X = cbind(x);
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+```
+
+$F_0 = 599.7177 >> F_\alpha (p, n-2) = 3.8654$ 이므로 귀무가설 $H_0 : \beta_1 = 0$은 유의수준 $\alpha = 0.05$에서 기각할 수 없다. 즉 1차 다항회귀모형은 유의하다.
+
+#### 9.10 - (2)
+
+```{r}
+x2 = x^2
+X = cbind(x, x2);
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+```
+
+$F_0 = 428.0176 >> F_\alpha (p, n-3) = 3.0189$ 이므로 귀무가설 $H_0 : \beta_1 = \beta_2 = 0$은 유의수준 $\alpha = 0.05$에서 기각할 수 없다. 즉 2차 다항회귀모형은 유의하다.
