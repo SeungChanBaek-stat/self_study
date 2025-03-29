@@ -183,7 +183,7 @@ mult_test = function(C, m, X, X_r, y, y_r, alpha = 0.05, method = "one", coef = 
 
 #######################################################################################
 
-
+# 추가제곱합 계산함수
 ASS_calc = function(X, y, index_sol, index_given = NA, coef = TRUE){
   n = dim(X)[1] ; p = dim(X)[2]
   if (coef == TRUE){
@@ -215,6 +215,7 @@ ASS_calc = function(X, y, index_sol, index_given = NA, coef = TRUE){
 
 #######################################################################################
 
+# 표준화함수
 standard_calc = function(X, y){
   n = dim(X)[1] ; p = dim(X)[2]
   
@@ -244,7 +245,7 @@ standard_calc = function(X, y){
 
 #######################################################################################
 
-
+# 직교다항회귀행렬 계산함수
 ortho_poly = function(X, k, coef = TRUE){
   library(glue)
   n = dim(X)[1] ; p = dim(X)[2] ; d = X[2,1] - X[1,1]

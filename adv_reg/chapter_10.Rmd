@@ -1,0 +1,149 @@
+---
+title: "고급회귀분석 10장장"
+output: html_document
+date: "2025-03-29"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 10.3 이상점 탐색
+
+### (예 10.1)
+
+```{r}
+source("functions/mult_reg.R", echo = TRUE)
+source("functions/reg_diagnostics.R", echo = TRUE)
+
+x = c(15, 26, 10, 9, 15, 20, 18, 11, 8 ,20, 7, 9, 10, 11, 11, 10, 12, 42, 17, 11, 10)
+y = c(95, 71, 83, 91, 102, 87, 93, 100, 104, 94, 113, 96, 83, 84, 102, 100, 105, 57, 121, 86, 100)
+X = cbind(x)
+
+mult_res = mult_reg(X, y, coeff = TRUE, alpha = 0.05)
+beta_hat = mult_res$beta_hat ; beta_hat
+MSE = mult_res$MSE ; MSE ;sqrt(MSE)
+
+outlier_res = outliers(X, y, alpha = 0.05, MSE)
+
+hbar = mean(outlier_res$h_ii) ; hbar
+```
+
+### (예 10.2)
+
+```{r}
+source("functions/mult_reg.R", echo = TRUE)
+source("functions/reg_diagnostics.R", echo = TRUE)
+
+x = c(15, 26, 10, 9, 15, 20, 18, 11, 8 ,20, 7, 9, 10, 11, 11, 10, 12, 42, 17, 11, 10)
+y = c(95, 71, 83, 91, 102, 87, 93, 100, 104, 94, 113, 96, 83, 84, 102, 100, 105, 57, 121, 86, 100)
+X = cbind(x)
+
+mult_res = mult_reg(X, y, coeff = TRUE, alpha = 0.05)
+beta_hat = mult_res$beta_hat ; beta_hat
+MSE = mult_res$MSE ; MSE ;sqrt(MSE)
+
+outlier_res = outliers(X, y, alpha = 0.05, MSE)
+
+hbar = mean(outlier_res$h_ii) ; hbar
+```
+
+## 10.6 R 실습
+
+이 절에서는 6장의 연습문제 14에서 메이저리그 야구선수 연봉 데이터에 적합한 다음의 중회귀 모형에 대해서 지렛대점, 이상점과 영향점을 찾는 통계량을 구하는 방법에 대하여 살펴보도록 한다.
+
+\begin{equation*}
+  \text{Salary}_i = \beta_0 + \beta_1 \times \text{AtBat}_i + \beta_2 \times \text{Hits}_i + \beta_3 \times \text{HmRun}_i + \epsilon_i, ~~ i = 1,2, \cdots, 263
+\end{equation*}
+
+먼저 이상점을 탐색하기 위해 스튜던트화 잔차 $r^{*}_i$는 `rstudent()`함수를 사용하여 다음과 같이 찾을 수 있다.
+
+```{r}
+library(dplyr)
+library(ISLR)
+data(Hitters)
+hitter.dat <- Hitters %>% na.omit %>% select(Salary, AtBat, Hits, HmRun)
+
+lm.fit <- lm(Salary ~., hitter.dat)
+res <- rstudent(lm.fit) # 스튜던트화 잔차
+res [abs(res) > qt(0.975, 258)]
+```
+
+또한, 표준화 잔차는 `rstandard()`함수를 통해 확인할 수 있다. R에서는 지렛대점을 나타내는 $h_ii$와 영향점을 확인할 수 있는 $DFFITS(i),~ D(i),~COVRATIO(i)$에 대하여 살펴보자. 이들은 각각 `hatvalues(), dffits(), cooks.distance(), covratio()`함수를 통해 구할 수 있다. 또는 `influence.measures()`함수를 통해 다음과 같이 쉽게 그 결과를 알아 볼 수 있다.
+
+```{r}
+summary(influence.measures(lm.fit))
+```
+
+위 결과로부터 지렛대점과 영향점으로 의심되는 관측값을 확인해볼 수 있다. 이때, 처음 4개의 열은 중회귀모형에서 절편항을 포함한 각 설명변수에 관하여 영향점을 알아본 것으로 $\hat{\beta}_j - \hat{\beta}_j(i) ~(j=1,\cdots, 4)$에 해당하며, `dfbetas()`함수의 결과인데 이 값이 $2/\sqrt{n}$보다 크다는 것은 이 관측값이 각 회귀계수의 추정값에 영향을 많이 미친다는 의미이다. 5번째 열부터 8번째 열까지 차례대로 `dffits(), covratio(), cooks.distance(), hatvalues()`함수의 결과이다. 이 결과는 각 통계량의 기각치보다 큰 관측값을 모두 보여준 것으로, 유의하다고 판정한 관측값은 추정값 옆에 *로 표시된다.
+
+이제 R함수를 사용하지 않고 중회귀모형을 적합한 결과로부터 설명변수 행렬 X를 정의하고 다음과 같이 각 통계량을 직접 계산해보도록 하자.
+
+```{r}
+X <- as.matrix(hitter.dat[, -1])
+
+# 잔차
+res <- lm.fit$residuals
+
+# 잔차의 자유도 : n - p - 1
+df.res <- lm.fit$df.residual
+
+# MSE의 제곱근
+s <- as.vector(sqrt(res %*% res / df.res) )
+
+# 해트행렬
+hat.mat <- X %*% solve(t(X) %*% X) %*% t(X)
+
+# 표준화 잔차
+standard_res <- res / (s * sqrt(1 - diag(hat.mat)))
+
+# 스튜던트화 잔차
+student_res <- standard_res * sqrt((df.res - 1) / (df.res - standard_res^2))
+
+# 이상점
+outlier <- rownames(hitter.dat)[(abs(student_res) > qt(0.975, df = df.res - 1)) == TRUE]
+
+outlier
+```
+
+여기에서 적합값에 대한 표준화잔차와 스튜던트화잔차를 그려보면 다음과 같다.
+
+```{r}
+yhat_outlier = lm.fit$fitted.values[outlier]
+student_res_outlier = student_res[outlier]
+par(mfrow = c(1,2))
+
+plot(lm.fit$fitted.values, standard_res, xlab = expression(hat(y)),
+     ylab = "Standardized Residual")
+abline(h = c(-2, 2), col = "blue", lty = "dotted")
+plot(lm.fit$fitted.values, student_res, xlab = expression(hat(y)),
+     ylab = "Studentized Residual")
+abline(h = qt(c(0.025, 0.975), df = df.res - 1), col = "blue", lty = "dotted")
+points(yhat_outlier, student_res_outlier, col = "red")
+text(x = yhat_outlier, y = student_res_outlier, labels = outlier,
+     pos = 4, cex = 0.5, col = "red")
+```
+
+영향점을 알아보는 것으로 Cook의 통계량 $D(i)$를 살펴보면 다음과 같다.
+
+```{r}
+D = diag(hat.mat) * standard_res^2 / 4 * (1 - diag(hat.mat))
+
+influence_obs <- hitter.dat$index[D > qf(0.5, 4, df.res)]
+influence_obs
+```
+
+위 결과는 Cook의 통계량으로부터 영향점으로 의심되는 관측값이 없다는 것을 의미하며, 이것은 앞의 `influence.measures()`의 결과와 일치함을 알 수 있다.
+
+
+
+
+
+
+
+
+
+
