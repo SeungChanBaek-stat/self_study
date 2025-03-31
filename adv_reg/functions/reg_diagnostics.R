@@ -22,7 +22,7 @@ outliers = function(X, y, alpha = 0.05, MSE){
     D_i[i] = h_ii[i] / ((p + 1) * (1 - h_ii[i])) * (r_i[i])^2
     M_i[i] = (n-1) * (h_ii[i] - 1/n)
     AP_i[i] = (1 - h_ii[i]) - ((e_i[i])^2 / ((n-p-1) * s^2))
-    COVRATIO_i[i] = 1 / ((1 + ((rstar_i[i])^2 - 1) / (n-p-1))^(p+1) * (1 - h_ii[i]))
+    COVRATIO_i[i] = 1 / ( (1 + ((rstar_i[i])^2 - 1) / (n-p-1) )^(p+1) * (1 - h_ii[i]) )
     FVARATIO_i[i] = (e_i[i])^2 / ((rstar_i[i])^2 * (1 - h_ii[i])^2 * s^2)
   }
   nums = c(seq(from = 1, to = n, by = 1))
