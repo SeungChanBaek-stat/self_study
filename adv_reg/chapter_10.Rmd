@@ -1,5 +1,5 @@
 ---
-title: "고급회귀분석 10장장"
+title: "고급회귀분석 10장"
 output: html_document
 date: "2025-03-29"
 

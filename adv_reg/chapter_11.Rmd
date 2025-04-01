@@ -1,0 +1,39 @@
+---
+title: "고급회귀분석 11장"
+output: html_document
+date: "2025-04-01"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 11.2 변수선택의 방법
+
+```{r}
+source("functions/mult_reg.R", echo = TRUE)
+source("functions/reg_diagnostics.R", echo = TRUE)
+source("functions/var_selection.R", echo = TRUE)
+```
+
+### (예 11.1)
+
+```{r}
+x1 = c(7, 1, 11, 11, 7, 11, 3, 1, 2, 21, 1, 11, 10)
+x2 = c(26, 29, 56, 31, 52, 55, 71, 31, 54, 47, 40, 66, 68)
+x3 = c(6, 15, 8, 8, 6, 9, 17, 22, 18, 4, 23, 9, 8)
+x4 = c(60, 52, 20, 47, 33, 22, 6, 44, 22, 26, 34, 12, 12)
+y = c(78.5, 74.3, 104.3, 87.6, 95.9, 109.2, 102.7, 72.5, 93.1, 115.9, 83.8, 113.3, 109.4)
+X = cbind(x1, x2, x3, x4)
+
+class(y)
+class(X)
+
+
+res = best_subset(X, y)
+
+res$MSE_vec
+```
