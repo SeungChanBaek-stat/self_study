@@ -11,6 +11,9 @@ hit.dat <- Hitters %>% na.omit %>% select(Salary, AtBat, Hits, HmRun, Runs, RBI,
 
 X = hit.dat[, -c(1)] ; y = hit.dat[, c(1)]
 
-res_hit = best_subset(X, y)
+best_subset_res = best_subset(X, y)
 
+back_eli_res = back_eli(X, y, alpha_drop = 0.15)
+
+forward_sel_res = forward_sel(X, y, alpha_add = 0.15)
 

@@ -213,6 +213,47 @@ ASS_calc = function(X, y, index_sol, index_given = NA, coef = TRUE){
 }
 
 
+
+#######################################################################################
+
+# 추가제곱합 계산함수2(변수명 character를 다루는 경우)
+ASS_calc_char = function(X, y, index_vec, index_sol, index_given = NA, coef = TRUE){
+  n = dim(X)[1] ; p = dim(X)[2]
+  if (coef == TRUE){
+    one = c(rep(1,n)) ; X = cbind(one, X)
+  }
+  if (all(is.na(index_given))){
+    index_sol = index_sol + 1
+    X_sol = X[,index_vec[index_sol]]
+    SS = t(y) %*% X_sol %*% solve(t(X_sol) %*% X_sol) %*% t(X_sol) %*% y
+    
+    print(glue("SS({paste0('beta_', index_sol - 1, collapse = ', ')}) = {SS}"))
+    return(SS)
+    
+  }else{
+    if (coef == TRUE){
+      index_sol = index_sol + 1 ; index_sol = c(index_sol)
+      index_given = index_given + 1 ; index_given = c(1, index_given)
+      index_full <- sort(union(index_sol, index_given))
+      
+      
+    }else if(coef == FALSE){
+      index_full <- sort(union(index_sol, index_given))
+    }
+    # X_F = X[,index_vec[index_full]] ; X_G = X[,index_vec[index_given]]
+    X_F = X[,index_full] ; X_G = X[,index_given]
+    SS_F = t(y) %*% X_F %*% solve(t(X_F) %*% X_F) %*% t(X_F) %*% y
+    SS_G = t(y) %*% X_G %*% solve(t(X_G) %*% X_G) %*% t(X_G) %*% y
+    
+    SS = SS_F - SS_G
+    
+    # print(glue("SS({paste0('beta_', index_sol - 1, collapse = ', ')} | {paste0('beta_', index_given - 1, collapse = ', ')}) = {SS}"))
+    return(SS)
+    
+  }
+}
+
+
 #######################################################################################
 
 # 표준화함수
