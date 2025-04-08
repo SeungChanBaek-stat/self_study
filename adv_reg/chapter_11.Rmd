@@ -30,10 +30,6 @@ y = c(78.5, 74.3, 104.3, 87.6, 95.9, 109.2, 102.7, 72.5, 93.1, 115.9, 83.8, 113.
 X = cbind(x1, x2, x3, x4)
 
 res = best_subset(X, y)
-
-res$MSE_vec
-res$col_vec[res$min_MSE_index]
-res$col_vec[res$max_R2_a_index]
 ```
 
 ```{r}
@@ -53,7 +49,7 @@ x4 = c(60, 52, 20, 47, 33, 22, 6, 44, 22, 26, 34, 12, 12)
 y = c(78.5, 74.3, 104.3, 87.6, 95.9, 109.2, 102.7, 72.5, 93.1, 115.9, 83.8, 113.3, 109.4)
 X = cbind(x1, x2, x3, x4)
 
-res = back_eli(X, y, alpha_drop = 0.05)
+res = back_eli(X, y, alpha_drop = 0.05, method = "Mallow")
 
 X = res$X_out ; one = c(rep(1, dim(X)[1])) ; X = cbind(one, X)
 beta_hat_eli = solve(t(X) %*% X) %*% t(X) %*% y ; beta_hat_eli
@@ -71,11 +67,315 @@ x4 = c(60, 52, 20, 47, 33, 22, 6, 44, 22, 26, 34, 12, 12)
 y = c(78.5, 74.3, 104.3, 87.6, 95.9, 109.2, 102.7, 72.5, 93.1, 115.9, 83.8, 113.3, 109.4)
 X = cbind(x1, x2, x3, x4)
 
-# colname_vec = colnames(X) ; colname_vec[4]
-# new_X = cbind(X[, colname_vec[4]]) ; colnames(new_X) = colname_vec[4]; new_X
-
-# colname_vec = colnames(X) ; colname_vec
-# colname_vec = colname_vec[-2] ; colname_vec
-
-res = forward_sel(X, y, alpha_add = 0.05)
+res = forward_sel(X, y, alpha_add = 0.05, method = "R2")
 ```
+
+### (예 11.4)
+
+```{r}
+source("functions/var_selection.R")
+source("functions/mult_reg.R", echo = FALSE)
+x1 = c(7, 1, 11, 11, 7, 11, 3, 1, 2, 21, 1, 11, 10)
+x2 = c(26, 29, 56, 31, 52, 55, 71, 31, 54, 47, 40, 66, 68)
+x3 = c(6, 15, 8, 8, 6, 9, 17, 22, 18, 4, 23, 9, 8)
+x4 = c(60, 52, 20, 47, 33, 22, 6, 44, 22, 26, 34, 12, 12)
+y = c(78.5, 74.3, 104.3, 87.6, 95.9, 109.2, 102.7, 72.5, 93.1, 115.9, 83.8, 113.3, 109.4)
+X = cbind(x1, x2, x3, x4)
+
+res = stepwise_sel(X, y, alpha_add = 0.10, alpha_drop = 0.05, method = "R2")
+```
+
+## 11.5 R 실습 : 자동차 연비 자료 분석
+
+이 데이터는 (참고문헌 11.6)에서 인용된 것으로 1973-1974년 형 32개의 자동차 모델에 대하여 연비를 반응변수로 하고, 자동차 설계 및 성능과 관련한 10개의 설명변수로 구성되어 있다.
+
+여기서 반응변수는 `mpg`로 한 갤론(gallon)으로 주행 가능한 거리(마일 수)를 나타낸다. 이 실험의 목적은 자동차 연비의 변화를 잘 설명하고, 예측도 가능한 최적의 회귀모형을 찾는 것이다. 관측치의 갯수느 모두 32개이다. 이 데이터는 R에 `mtcars`라는 이름으로 저장되어 있다.
+
+```{r}
+library(datasets)
+str(mtcars)
+```
+
+먼저 데이터 간 상관관계를 알아보면, 다음과 같이 설명변수 간에 상관관계가 큰 것들이 많으며, 특히 `cyl`(엔진의 기통수)와 `disp`(배기량)은 상관계수가 0.90이고 `disp`(배기량)과 `wt`(무게)는 상관계수가 0.89로 상당히 높은 상관관계를 가지고 있다.
+
+```{r}
+mcor <- round(cor(mtcars), 2)
+mcor
+```
+
+이제 이들 설명변수에 대하여 후진제거법을 적용하여 유의한 설명변수를 선택해 보기로 한다. 먼저 후진제거법의 (1)단계로 10개의 설명변수에 대한 중회귀모형을 적합해 보기로 한다.
+
+```{r}
+fit <- lm(mpg~., data = mtcars)
+summary(fit)
+```
+
+여기서 유의확률이 가장 큰 변수를 골라 $\alpha_{drop} = 5\%$와 비교하여 크면 제거하기로 한다. `cyl`이 제거되며 이를 제외한 후 모형을 적합하면 다음과 같다.
+
+```{r}
+fit <- update(fit, .~. -cyl)
+summary(fit)
+```
+
+그 다음에는 `vs`, `carb`, `gear`, `drat`, `disp`, `hp` 순으로 제거하여 다음과 같은 결과를 얻는다.
+
+```{r}
+eli_vec = c("vs", "carb", "gear", "drat", "disp", "hp")
+
+for (item in eli_vec){
+  fit <- update(fit, as.formula(paste(". ~ . -", item)))
+}
+summary(fit)
+```
+
+이렇게 후진제거법으로 선택된 변수들은 모두 유의수준 $\alpha_{drop} = 5\%$에서 유의한 것을 알 수 있다.
+
+이제 11.3절에서 소개한 4개의 판정기준$(MSE_k, R^2_k, R^2_{ak}, C_k)$으로 설명변수를 선택해보기로 하자. 이를 위해 $p$가 1개부터 9개를 갖는 회귀모형 중 가장 적절한 회귀모형을 선택하도록 하자. 이를 위해서는 `leaps`패키지의 `regsubsets()`함수를 사용하면 된다.
+
+```{r}
+# install.packages("leaps")
+library(leaps)
+
+fit <- regsubsets(mpg ~., data = mtcars, nbest = 1, nvmax = 9)
+fit2 <- summary(fit)
+
+out = with(fit2, round(cbind(which, rss, rsq, adjr2, cp), 3))
+out
+```
+
+이 표는 행의 순서대로 주어진 $p$의 값(선택되는 변수의 수)를 나타낸 것으로, 각 $p$에 대하여 가장 좋은 모형을 제시한다. 각 변수명에 대하여 변수가 선택된 경우 1 아니면 0이 나타난다. 네 개의 판정기준에서 `rss`는 $SSE_k$, `rsq`는 $R^2_k$, `adjr2`는 $R^2_{ak}$, 그리고 `cp`는 $C_k$값을 나타낸다. 이들은 모두
+
+\begin{equation*}
+  MSE_k = \cfrac{SSE_k}{n-k-1}, \quad \quad R^2_k = 1 - \cfrac{SSE_k}{SST}, \quad \quad C_k = \cfrac{SSE_k}{\hat{\sigma}^2} + 2(k+1) -n
+\end{equation*}
+
+으로 모두 $SSE_k$의 선형 함수이며, 고정된 $k$의 값에서는 $SSE_k$를 최소로 하는 변수들이 $MSE_k,C_k$를 최소로 하고 $R^2_k$를 최대로 한다. 
+
+$MSE_k$는 $k=5$에서 최소가 되며, $C_k$는 $k=3$, $R^2_{k}$는 $k$에 따른 증가함수이므로 $k=9$에서 최댓값을 가지나 $k=5$정도에서 $R^2_k$의 증가가 현저히 둔화됨을 알 수 있다. 결론적으로, $k$의 값은 $3,4,5$의 근처가 좋아 보이며, $k=4$에서는 4개의 판정기준이 똑같은 변수들 (`hp`, `wt`, `qsec`, `am`)을 선택하여 주고 있다. 따라서, 이들 4개의 변수들을 선택한다.
+
+또다른 예로 `Hitters` 자료에서 야구선수의 연봉을 잘 설명해주는 설명변수를 선택해 보자. 이를 위해 후진제거법과 전진선택법을 위한 `back.eli()`함수와 `forward.sel()`함수를 생성하였다. 이 때의 모형선택 기준으로는 수정결정계수와 Mallow의 $C_k$만 사용하였다. 이 함수를 생성하기 위한 R코드는 이 절의 마지막에 소개되어 있다. 먼저 자료는 `dplyr`패키지로부터 파이프연산자(%>%)를 사용하여 다음과 같이 같단하게 불러올 수 있다.
+
+```{r}
+library(ISLR)
+library(dplyr)
+source("functions/chapter_11/var_sel.R", echo = TRUE)
+
+data(Hitters)
+
+hitter.dat <- Hitters %>% na.omit %>% select(AtBat:CWalks, PutOuts:Salary)
+```
+
+위 자료에 대하여 `forward.sel()`함수를 사용하여 선택한 변수는 모형기준 별로 다음과 같다.
+
+```{r}
+library(olsrr)
+source("functions/chapter_11/var_sel.R", echo = FALSE)
+result.adj.R = forward.sel(hitter.dat, alpha = 0.05, method = "adj.R")
+table.adj.R = data.frame(result.adj.R[[1]], result.adj.R[[2]])
+table.adj.R
+
+result.Mallow = forward.sel(hitter.dat, alpha = 0.05, method = "Mallow")
+table.Mallow = data.frame(result.Mallow[[1]], result.Mallow[[2]])
+table.Mallow
+```
+
+이제 `back.eli()` 함수를 사용하여 제거한 변수를 살펴보자.
+
+```{r}
+result.adj.R = back.eli(hitter.dat, alpha = 0.05, method = "adj.R")
+table.adj.R = data.frame(result.adj.R[[1]], result.adj.R[[2]])
+table.adj.R
+
+result.Mallow = forward.sel(hitter.dat, alpha = 0.05, method = "Mallow")
+table.Mallow = data.frame(result.Mallow[[1]], result.Mallow[[2]])
+table.Mallow
+```
+
+이 자료에서는 두 모형기준에서의 변수선택 결과가 전진선택법과 후진제거법에서 모두 같게 나타났다.
+
+## 연습문제
+
+### 11.1
+
+```{r}
+source("functions/var_selection.R", echo = FALSE)
+x1 = c(80, 80, 75, 62, 62, 62, 62, 62, 58, 58, 58, 58, 58, 58, 50, 50, 50, 50, 50, 56, 70)
+x2 = c(27, 27, 25, 24, 22, 23, 24, 24, 23, 18, 18, 17, 18, 19, 18, 18, 19, 19, 20, 20, 20)
+x3 = c(89, 88, 90, 87, 87, 87, 93, 93, 87, 90, 89, 88, 82, 93, 89, 86, 72, 79, 80, 82, 91)
+y = c(42, 37, 37, 28, 18, 18, 19, 20, 15, 14, 14, 13, 11, 12, 8, 7, 8, 8, 9, 15, 15)
+X = cbind(x1, x2, x3) ; n = dim(X)[1] ; p = dim(X)[2]
+```
+
+#### 11.1 - (1)
+
+```{r}
+# (a)
+res = back_eli(X, y, alpha_drop = 0.05, method = "R2")
+
+X_sel = res$X_out ; one = c(rep(1,n)) ; X_sel = cbind(one, X_sel)
+
+beta_hat = solve(t(X_sel) %*% X_sel) %*% t(X_sel) %*% y
+
+beta_hat
+```
+
+```{r}
+# (b)
+res = forward_sel(X, y, alpha_add = 0.05, method = "R2")
+
+X_sel = res$X_out ; one = c(rep(1,n)) ; X_sel = cbind(one, X_sel)
+
+beta_hat = solve(t(X_sel) %*% X_sel) %*% t(X_sel) %*% y
+
+beta_hat
+```
+
+```{r}
+# (c)
+res = stepwise_sel(X, y, alpha_add = 0.05, alpha_drop = 0.05, method = "R2")
+
+X_sel = res$X_out ; one = c(rep(1,n)) ; X_sel = cbind(one, X_sel)
+
+beta_hat = solve(t(X_sel) %*% X_sel) %*% t(X_sel) %*% y
+
+beta_hat
+```
+
+#### 11.1 - (2)
+
+```{r}
+# (a)
+res = back_eli(X, y, alpha_drop = 0.05, method = "Mallow")
+
+X_sel = res$X_out ; one = c(rep(1,n)) ; X_sel = cbind(one, X_sel)
+
+beta_hat = solve(t(X_sel) %*% X_sel) %*% t(X_sel) %*% y
+
+beta_hat
+```
+
+```{r}
+# (b)
+res = forward_sel(X, y, alpha_add = 0.05, method = "Mallow")
+
+X_sel = res$X_out ; one = c(rep(1,n)) ; X_sel = cbind(one, X_sel)
+
+beta_hat = solve(t(X_sel) %*% X_sel) %*% t(X_sel) %*% y
+
+beta_hat
+```
+
+```{r}
+# (c)
+res = stepwise_sel(X, y, alpha_add = 0.05, alpha_drop = 0.05, method = "Mallow")
+
+X_sel = res$X_out ; one = c(rep(1,n)) ; X_sel = cbind(one, X_sel)
+
+beta_hat = solve(t(X_sel) %*% X_sel) %*% t(X_sel) %*% y
+
+beta_hat
+```
+
+#### 11.1 - (3)
+
+```{r}
+source("functions/var_selection.R", echo = FALSE)
+x1 = c(80, 80, 75, 62, 62, 62, 62, 62, 58, 58, 58, 58, 58, 58, 50, 50, 50, 50, 50, 56, 70)
+x2 = c(27, 27, 25, 24, 22, 23, 24, 24, 23, 18, 18, 17, 18, 19, 18, 18, 19, 19, 20, 20, 20)
+x3 = c(89, 88, 90, 87, 87, 87, 93, 93, 87, 90, 89, 88, 82, 93, 89, 86, 72, 79, 80, 82, 91)
+y = c(42, 37, 37, 28, 18, 18, 19, 20, 15, 14, 14, 13, 11, 12, 8, 7, 8, 8, 9, 15, 15)
+X = cbind(x1, x2, x3) ; n = dim(X)[1] ; p = dim(X)[2]
+
+x1_2 = x1^2 ; x2_2 = x2^2 ; x3_2 = x3^2
+x1_x2 = x1 * x2 ; x1_x3 = x1 * x3 ; x2_x3 = x2 * x3
+X_2 = cbind(X, x1_2, x2_2, x3_2, x1_x2, x1_x3, x2_x3) ; n = dim(X_2)[1] ; p = dim(X_2)[2]
+```
+
+```{r}
+# (a) 우선 단계적 전진선택법으로 해본다.
+res = stepwise_sel(X_2, y, alpha_add = 0.05, alpha_drop = 0.05, method = "adj_R2")
+res = back_eli(X_2, y, alpha_drop = 0.05, method = "MSE")
+
+res = best_subset(X_2, y)
+```
+
+#### 11.2
+
+```{r}
+x1 = c(2.80, 1.40, 1.40, 3.30, 1.70, 2.90, 3.70, 0.92, 0.68, 0.68,
+       6.00, 4.30, 0.60, 1.80, 6.00, 4.40, 88.00, 62.00, 50.00, 58.00,
+       90.00, 66.00, 140.00, 240.00, 420.00, 500.00, 180.00, 270.00, 170.00, 98.00, 35.00)
+x2 = c(4.68, 5.19, 4.82, 4.85, 4.86, 5.16, 4.82, 4.86, 4.78, 5.16,
+       4.57, 4.61, 5.07, 4.66, 5.42, 5.01, 4.97, 5.01, 4.96, 5.20,
+       4.80, 4.98, 5.35, 5.04, 4.80, 4.83, 4.66, 4.67, 4.72, 5.00, 4.70)
+x3 = c(4.87, 4.50, 4.73, 4.76, 4.95, 4.45, 5.05, 4.70, 4.84, 4.76,
+       4.82, 4.65, 5.10, 5.09, 4.41, 4.74, 4.66, 4.72, 4.90, 4.70,
+       4.60, 4.69, 4.76, 4.80, 4.80, 4.60, 4.72, 4.50, 4.70, 5.07, 4.80)
+x4 = c(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+       -1, -1, -1, -1, -1, -1, 1, 1, 1, 1,
+       1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1)
+x5 = c(8.4, 6.5, 7.9, 8.3, 8.4, 7.4, 6.8, 8.6, 6.7, 7.7,
+       7.4, 6.7, 7.5, 8.2, 5.8, 7.1, 6.5, 8.0, 6.8, 8.2,
+       6.6, 6.4, 7.3, 7.8, 7.4, 6.7, 7.2, 6.3, 6.8, 7.2, 7.7)
+x6 = c(4.916, 4.563, 5.321, 4.865, 3.776, 4.397, 4.867, 4.828, 4.865, 4.034,
+       5.450, 4.853, 4.257, 5.144, 3.718, 4.715, 4.625, 4.977, 4.322, 5.087,
+       5.971, 4.647, 5.115, 5.939, 5.916, 5.471, 4.602, 5.043, 5.075, 4.334, 5.705)
+y = c(6.75, 13.00, 14.75, 12.60, 8.25, 10.67, 7.28, 12.67, 12.58, 20.60,
+      3.58, 7.00, 26.20, 11.67, 7.67, 12.25, 0.76, 1.35, 1.44, 1.60,
+      1.10, 0.85, 1.20, 0.56, 0.72, 0.47, 0.33, 0.26, 0.76, 0.80, 2.00)
+
+x1 = log(x1) ; y = log(y)
+
+X = cbind(x1, x2, x3, x4, x5, x6)
+```
+
+```{r}
+cor(X)
+
+cor(X, y)
+```
+#### 11.2 - (1)
+
+```{r}
+source("functions/mult_reg.R")
+mult_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+
+beta_hat = mult_res$beta_hat ; round(beta_hat, 2) ; mult_res$SSR / mult_res$SST
+```
+
+#### 11.2 - (4)
+
+```{r}
+res = best_subset(X, y)
+
+X_5 = X[, -c(5)] ; n = dim(X)[1]; In = diag(1, n) ; one = c(rep(1,n));  X_5 =  cbind(one, X_5)
+SST = t(y) %*% (In - (1/n) * one %*% t(one)) %*% y
+
+MSE_5 = t(y) %*% (In - X_5 %*% solve(t(X_5) %*% X_5) %*% t(X_5)) %*% y / (n - dim(X_5)[2])
+R2_5 = 1 - ((MSE_5 * (n - dim(X_5)[2]))/SST)
+R2_a_5 = 1 - ((MSE_5/SST) * (n-1))
+print(glue("MSE_5 = {MSE_5}, R2_5 = {R2_5}, R2_a_5 = {R2_a_5}"))
+
+MSE = t(y) %*% (In - X %*% solve(t(X) %*% X) %*% t(X)) %*% y / (n - dim(X)[2] - 1)
+R2 = 1 - ((MSE * (n - dim(X)[2] - 1))/SST)
+R2_a = 1 - ((MSE/SST) * (n-1))
+print(glue("MSE_6 = {MSE}, R2_6 = {R2}, R2_a_6 = {R2_a}"))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

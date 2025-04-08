@@ -1,0 +1,408 @@
+---
+title: "고급회귀분석 12장"
+output: html_document
+date: "2025-04-07"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 12.4 자기상관
+
+```{r}
+source("functions/mult_reg.R", echo = TRUE)
+source("functions/reg_diagnostics.R", echo = TRUE)
+source("functions/var_selection.R", echo = TRUE)
+```
+
+### (예 12.1)
+
+```{r}
+x1 = c(133.6, 135.4, 137.6, 140.0, 143.8, 147.1, 148.8, 151.4, 153.3, 156.5,
+       160.8, 163.6, 166.9, 171.4, 174.0, 175.4, 180.5, 184.9, 187.1, 188.7)
+y = c(349.7, 353.5, 359.2, 366.4, 376.5, 385.7, 391.3, 398.9, 404.2, 414.0,
+      423.4, 430.5, 440.4, 451.8, 457.0, 460.9, 462.9, 443.4, 445.0, 449.0)
+
+X = cbind(x1) ; n = dim(X)[1] ; one = c(rep(1, n))
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+
+res$beta_hat ; y_hat = cbind(one, x1) %*% (res$beta_hat)
+
+e = y - y_hat ; # e
+
+num = 0 ; denum = 0
+
+for (i in 2:n){
+  num = num + (e[i] - e[i-1])^2 ; denum = denum + (e[i])^2
+} 
+d = num / denum ; d ; num ; denum
+
+rho_num = 0 ; rho_denum = 0
+for (i in 2:n){
+  rho_num = rho_num + e[i-1] * e[i] ; rho_denum = rho_denum + (e[i-1])^2
+}
+rho_hat = rho_num / rho_denum ; rho_hat
+
+x1_prime = c(NA) ; y_prime = c(NA)
+for (i in 2:n){
+  x1_prime[i] = x1[i] - rho_hat * x1[i-1]
+  y_prime[i] = y[i] - rho_hat * y[i-1]
+}
+x1_prime <- x1_prime[-1] ; y_prime <- y_prime[-1]
+
+x1_prime_bar = mean(x1_prime) ; y_prime_bar = mean(y_prime)
+
+beta_1_hat = sum((x1_prime - x1_prime_bar)*(y_prime - y_prime_bar)) / sum((x1_prime - x1_prime_bar)^2)
+beta_0_hat = (y_prime_bar - x1_prime_bar * beta_1_hat)/(1 - rho_hat)
+
+beta_0_hat ; beta_1_hat
+
+x1_prime
+```
+
+## 12.5 R 실습
+
+\textbf{Longley 데이터} 이 데이터는 R에 기본적으로 내장되어 있는 것으로 1947년부터 1962년까지 7가지의 경제학적 변수를 관측한 값으로 구성되어 있다. 반응변수는 고용자수(Employed), 설명변수는 국민총생산(GNP), 14세 이상의 인구수(Population)으로 할 때, GLS 추정량을 구해보자. 먼저 다음과 같은 중회귀모형을 가정해보자.
+
+\begin{equation*}
+  \text{Employed}_i = \beta_0 + \beta_1 \times \text{GNP}_i + \beta_2 \times \text{Population}_i + \epsilon_i, \quad \epsilon_i \sim N(0, \sigma^2), i = 1,\cdots, 16
+\end{equation*}
+
+```{r}
+data("longley")
+fit <- lm(Employed ~ GNP + Population, data = longley)
+summary(fit, cor = T)
+```
+
+위 결과는 $\boldsymbol{\mathbf{\epsilon}} \sim N(\mathbf{0}, \sigma^2 I_n)$을 가정한 것으로 회귀계수 추정값의 상관계수를 살펴보면 $\widehat{\text{Corr}}(\hat{\beta}_0, \hat{\beta}_1) = 0.98$, $\widehat{\text{Corr}}(\hat{\beta}_0, \hat{\beta}_2) = -1.00$, $\widehat{\text{Corr}}(\hat{\beta}_1, \hat{\beta}_2) = -0.99$으로 추정값들 사이의 상관성이 매우 높음을 알 수 있다. 특히 시간에 따라 관측된 이 데이터는 오차 $\epsilon_i$간 다음과 같은 일차자기상관관계의 가정이 더 적절할 수 있다.
+
+\begin{equation*}
+  \epsilon_i = \rho \epsilon_i + \delta_i, \quad \delta_i \sim N(0, \sigma^2_{\delta})
+\end{equation*}
+
+이때, $\rho = 0$인지 알아보기 위해 Durbin-Watson 통계량으로 검정해보기로 한다. 이것은 `car`패키지를 설치하여 `DurbinWatsonTest()`함수를 사용하면 된다.
+
+```{r}
+library(car)
+durbinWatsonTest(fit)
+```
+
+위 결과로부터 귀무가설 $\rho = 0$은 유의수준 5%에서 기각할 수 있다. 이제 $\boldsymbol{\mathbf{\epsilon}} \sim N(0, \sigma^2 V)$을 가정하고 GLS 추정량 $\hat{\beta}^{*} = (X^{\top} V^{-1} X)^{-1} X^{\top} V^{-1} \mathbf{y}$ 를 구해 보자. 일차자기상관관계를 가정한 경우 오차의 분산-공분산 행렬은 $V_{ij} = \rho^{|i-j|}$이고, 자기상관계수 $\rho$가 알려져 있다고 가정해야 하므로 위의 OLS 적합결과로부터 이를 추정하면 다음과 같다.
+
+```{r}
+cor(fit$residuals[-16], fit$residuals[-1])
+```
+
+이것은 $\hat{\rho} = \textstyle\sum_{i=2}^{n} e_i e_{i-1} / \textstyle\sum_{i=2}^{n} e^{2}_i$ 을 계산한 것이다. 이제 $V_{ij} = \rho^{|i-j|}$ 에서 $\rho$ 대신 $\hat{\rho} = 0.3104092$를 대입하면 다음과 같다.
+
+```{r}
+V <- diag(16)
+V <-  0.3104092^abs(row(V) - col(V))
+
+X <- model.matrix(fit)
+V.inv <- solve(V)
+
+beta <- solve(t(X) %*% V.inv %*% X) %*% t(X) %*% V.inv %*% longley$Employed # GLS 추정량
+
+beta
+```
+GLS 추정량의 표준오차 $\sqrt{\widehat{\text{Var}}(\hat{\boldsymbol{\mathbf{\beta}}}^{*})} = \sqrt{\hat{\sigma}^2 (X^{\top} V^{-1}X)^{-1}}$ 는 다음과 같이 구할 수 있다.
+
+```{r}
+res <- longley$Employed - X %*% beta
+sig <- sum(res^2) / fit$df
+sqrt(diag(solve(t(X) %*% V.inv %*% X)) * sig) 
+```
+
+```{r}
+# 분산 추정값
+solve(t(X) %*% V.inv %*% X) * sig
+```
+
+## 연습문제
+
+### 12.8
+
+```{r}
+x = c(seq(1, from = 0 , to = 9))
+y = c(120, 135, 162, 181, 215, 234, 277, 313, 374, 422)
+
+X = cbind(x) ; n = dim(X)[1] ; one = c(rep(1, n))
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+
+res$beta_hat ; y_hat = cbind(one, x) %*% (res$beta_hat)
+
+e = y - y_hat ; # e
+
+num = 0 ; denum = 0
+
+for (i in 2:n){
+  num = num + (e[i] - e[i-1])^2 ; denum = denum + (e[i])^2
+} 
+d = num / denum # ; d ; num ; denum
+
+rho_num = 0 ; rho_denum = 0
+for (i in 2:n){
+  rho_num = rho_num + e[i-1] * e[i] ; rho_denum = rho_denum + (e[i-1])^2
+}
+rho_hat = rho_num / rho_denum # ;  rho_hat
+
+x1_prime = c(NA) ; y_prime = c(NA)
+for (i in 2:n){
+  x1_prime[i] = x[i] - rho_hat * x[i-1]
+  y_prime[i] = y[i] - rho_hat * y[i-1]
+}
+x1_prime <- x1_prime[-1] ; y_prime <- y_prime[-1]
+
+x1_prime_bar = mean(x1_prime) ; y_prime_bar = mean(y_prime)
+
+beta_1_hat = sum((x1_prime - x1_prime_bar)*(y_prime - y_prime_bar)) / sum((x1_prime - x1_prime_bar)^2)
+beta_0_hat = (y_prime_bar - x1_prime_bar * beta_1_hat)/(1 - rho_hat)
+
+beta_0_hat ; beta_1_hat
+
+plot(x, y, xlab= "x", ylab = "y")
+abline(coef = c(beta_0_hat, beta_1_hat), col = "lightblue")
+abline(coef = res$beta_hat, col = "green")
+```
+
+### 12.9
+
+```{r}
+x = c(127.3, 130.0, 132.7, 129.4, 135.0, 137.1, 141.2, 142.8, 145.5, 145.3,
+      148.3, 146.4, 150.2, 153.1, 157.3, 160.7, 164.2, 165.6, 168.7, 171.7)
+y = c(20.9, 21.4, 21.9, 21.5, 22.3, 22.7, 23.4, 23.6, 24.1, 24.0,
+      24.5, 24.3, 25.0, 25.6, 26.3, 26.9, 27.5, 27.7, 28.2, 28.7)
+```
+
+#### 12.9 - (1)
+
+```{r}
+X = cbind(x) ; n = dim(X)[1] ; one = c(rep(1, n))
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+
+res$beta_hat ; y_hat = cbind(one, x) %*% (res$beta_hat)
+
+e = y - y_hat ; # e
+
+num = 0 ; denum = 0
+
+for (i in 2:n){
+  num = num + (e[i] - e[i-1])^2 ; denum = denum + (e[i])^2
+} 
+d = num / denum ; d # num ; denum
+```
+
+#### 12.9 - (2)
+
+```{r}
+res$beta_hat
+
+time = c(seq(from =1, to = n, by = 1))
+
+plot(x = time, y = e, xlab = "time", ylab = "residual",
+     main = "시간에 따른 잔차 산점도", pch = 19, cex = 1.2)
+```
+
+#### 12.9 - (3)
+
+```{r}
+rho_num = 0 ; rho_denum = 0
+for (i in 2:n){
+  rho_num = rho_num + e[i-1] * e[i] ; rho_denum = rho_denum + (e[i-1])^2
+}
+rho_hat = rho_num / rho_denum # ; rho_hat
+
+x1_prime = c(NA) ; y_prime = c(NA)
+for (i in 2:n){
+  x1_prime[i] = x[i] - rho_hat * x[i-1]
+  y_prime[i] = y[i] - rho_hat * y[i-1]
+}
+x1_prime <- x1_prime[-1] ; y_prime <- y_prime[-1]
+
+x1_prime_bar = mean(x1_prime) ; y_prime_bar = mean(y_prime)
+
+beta_1_hat = sum((x1_prime - x1_prime_bar)*(y_prime - y_prime_bar)) / sum((x1_prime - x1_prime_bar)^2)
+beta_0_hat = (y_prime_bar - x1_prime_bar * beta_1_hat)/(1 - rho_hat)
+
+beta_0_hat ; beta_1_hat
+
+plot(x, y, xlab= "x", ylab = "y")
+abline(coef = c(beta_0_hat, beta_1_hat), col = "lightblue", lwd = 2)
+# abline(coef = res$beta_hat, col = "green", lwd = 2.5)
+# legend()
+```
+
+#### 12.9 - (4)
+```{r}
+# 정밀도 행렬을 생성하는 함수 정의
+generate_precision_matrix <- function(rho, n) {
+  # n이 1인 경우
+  if(n == 1){
+    return(matrix(1 / (1 - rho^2), nrow = 1, ncol = 1))
+  }
+  
+  # n x n 크기의 0 행렬 생성
+  Sigma_inv <- matrix(0, n, n)
+  
+  # 첫번째와 마지막 대각원소 설정
+  Sigma_inv[1, 1]   <- 1
+  Sigma_inv[n, n]   <- 1
+  
+  # 첫번째 행과 마지막 행의 off-diagonal 원소 설정
+  Sigma_inv[1, 2]   <- -rho
+  Sigma_inv[n, n-1] <- -rho
+  
+  # n > 2 인 경우, 중간 행들에 대해 내부 대각원소와 인접 off-diagonals 설정
+  if(n > 2){
+    for(i in 2:(n-1)) {
+      Sigma_inv[i, i]     <- (1 + rho^2)
+      Sigma_inv[i, i - 1] <- -rho
+      Sigma_inv[i, i + 1] <- -rho
+    }
+  }
+  
+  return(Sigma_inv / (1 - rho^2))
+}
+
+# # 예시: n과 rho_hat 값 설정
+# n <- 5
+# rho_hat <- 0.7
+# 
+# # 함수 호출을 통해 정밀도 행렬 생성
+# Sigma_inv <- generate_precision_matrix(rho_hat, n)
+# 
+# # 생성된 행렬 출력
+# print(Sigma_inv)
+```
+
+```{r}
+res$MSE * solve(res$XtX)
+
+X = cbind(one, X)
+
+# # Toeplitz 행렬 생성: 첫번째 열을 생성합니다.
+# first_column <- rho_hat^(0:(n-1))
+#
+# # toeplitz() 함수를 사용하여 Toeplitz 행렬 생성
+# V_hat <- toeplitz(first_column)
+# V_hat_inv = solve(V_hat)
+# # 결과 행렬 출력
+# print(V_hat_inv)
+rho_hat ; n
+V_hat_inv = generate_precision_matrix(rho_hat, n)
+sol = solve(t(X) %*% V_hat_inv %*% X) * res$MSE
+print(sol)
+```
+
+```{r}
+# 정밀도 행렬을 생성하는 함수 정의
+generate_precision_matrix <- function(rho, n) {
+  # n이 1인 경우
+  if(n == 1){
+    return(matrix(1 / (1 - rho^2), nrow = 1, ncol = 1))
+  }
+  
+  # n x n 크기의 0 행렬 생성
+  Sigma_inv <- matrix(0, n, n)
+  
+  # 첫번째와 마지막 대각원소 설정
+  Sigma_inv[1, 1]   <- 1
+  Sigma_inv[n, n]   <- 1
+  
+  # 첫번째 행과 마지막 행의 off-diagonal 원소 설정
+  Sigma_inv[1, 2]   <- -rho
+  Sigma_inv[n, n-1] <- -rho
+  
+  # n > 2 인 경우, 중간 행들에 대해 내부 대각원소와 인접 off-diagonals 설정
+  if(n > 2){
+    for(i in 2:(n-1)) {
+      Sigma_inv[i, i]     <- (1 + rho^2)
+      Sigma_inv[i, i - 1] <- -rho
+      Sigma_inv[i, i + 1] <- -rho
+    }
+  }
+  
+  return(Sigma_inv / (1 - rho^2))
+}
+
+# 예시: n과 rho_hat 값 설정
+n <- 5
+rho_hat <- 0.7
+
+# 함수 호출을 통해 정밀도 행렬 생성
+Sigma_inv <- generate_precision_matrix(rho_hat, n)
+
+# 생성된 행렬 출력
+print(Sigma_inv)
+```
+
+### 12.14
+
+```{r}
+x1 = c(133.6, 135.4, 137.6, 140.0, 143.8, 147.1, 148.8, 151.4, 153.3, 156.5,
+       160.8, 163.6, 166.9, 171.4, 174.0, 175.4, 180.5, 184.9, 187.1, 188.7)
+y = c(349.7, 353.5, 359.2, 366.4, 376.5, 385.7, 391.3, 398.9, 404.2, 414.0,
+      423.4, 430.5, 440.4, 451.8, 457.0, 460.9, 462.9, 443.4, 445.0, 449.0)
+```
+
+#### 12.14 - (1)
+```{r}
+X = cbind(x1) ; n = dim(X)[1] ; one = c(rep(1, n))
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+
+res$beta_hat
+
+y_hat = cbind(one, x1) %*% res$beta_hat
+
+e = y - y_hat
+
+par(mfrow = c(1,2))
+plot(x = x1, y = e, xlab = "x", ylab= "residual",
+     main = "x에 대한 잔차산점도", pch = 19, cex = 0.5)
+plot(x = y_hat, y = e, xlab = "x", ylab= "residual",
+     main = "y_hat에 대한 잔차산점도", pch = 19, cex = 0.5)
+```
+
+우선 산점도를 그려봤을때 오차항 간에 상관관계가 있는 것으로 보이나 일차자기상관이 있는지는 Durbin-Watson 검정을 통해 확인해본다
+
+```{r}
+num = 0 ; denum = 0
+
+for (i in 2:n){
+  num = num + (e[i] - e[i-1])^2 ; denum = denum + (e[i])^2
+} 
+d = num / denum ; d # ; num ; denum
+```
+
+$d = 0.3229567$ < $d_L = 1.20$ 이므로 귀무가설 $H_0 : \rho = 0$을 기각하고 $H_1 : \rho > 0$을 채택한다. 즉 유의수준 $\alpha = 0.05$에서 오차 간 일차자기상관관계가 있다고 할 수 있다.
+
+#### 12.14 - (2)
+
+```{r}
+rho_num = 0 ; rho_denum = 0
+for (i in 2:n){
+  rho_num = rho_num + e[i-1] * e[i] ; rho_denum = rho_denum + (e[i-1])^2
+}
+rho_hat = rho_num / rho_denum ; rho_hat
+
+V_hat_inv = generate_precision_matrix(rho_hat, n)
+
+X = cbind(one, x1)
+beta_hat_gls = solve(t(X) %*% V_hat_inv %*% X) %*% t(X) %*% V_hat_inv %*% y
+
+beta_hat_gls
+```
+
+계산결과 $\hat{\rho} = 0.891002$를 대입해서 $\widehat{V}^{-1}$를 구한 결과는 위의 R 코드 참조. $V$대신에 $\widehat{V}^{-1}$를 대입하여 $\hat{\beta}^{GLS} = (X^{\top} V^{-1} X )^{-1} X^{\top} V^{-1} \mathbf{y}$ 을 계산한 결과는 $\hat{\beta}^{GLS}_0 = 131.745681$, $\hat{\beta}^{GLS}_1 = 1.714326$ 이다.
+
+```{r}
+plot(x = x1, y = y, xlab = "x", ylab = "y", main = "회귀모형의 비교 : OLS vs GLS", pch = 19, cex= 0.5)
+abline(coef = res$beta_hat, col = "green", lwd = 1.5)
+abline(coef = beta_hat_gls, col = "lightblue", lwd = 1.5)
+legend("bottomright",legend=c("OLS","GLS"),fill=c("green","lightblue"),border="white",box.lty=0,cex=1.5)
+```
