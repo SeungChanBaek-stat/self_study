@@ -1,0 +1,143 @@
+---
+title: "고급회귀분석 13장"
+output: html_document
+date: "2025-04-10"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 13.1 설명변수로 한 개의 가변수를 갖는 경우우
+
+```{r}
+source("functions/mult_reg.R", echo = TRUE)
+source("functions/reg_diagnostics.R", echo = TRUE)
+source("functions/var_selection.R", echo = TRUE)
+```
+
+```{r}
+x1 = c(151, 92, 175, 31, 104, 277, 210, 120, 290, 238,
+       164, 272, 295, 68, 85, 224, 166, 305, 124, 246)
+x2 = c(rep(0, 10), rep(1, 10))
+y = c(17, 26, 21, 30, 22, 1, 12, 19, 4, 16,
+      28, 15, 11, 38, 31, 21, 20, 13, 30, 14)
+
+X = cbind(x1, x2)
+
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+res$beta_hat
+```
+
+```{r}
+# X[1:10,]
+# y_hat_0 = X[1:10,] %*% res$beta_hat
+# y_hat_1 = X[11:,] %*% res$beta_hat
+
+plot(x = x1[1:10], y = y[1:10], xlab = "적성검사점수", ylab = "총 소요시간",
+     main = "성별에 따른 회귀모형", col = "black", bg = "black", pch = 21, cex = 1, xlim = c(0, 320), ylim = c(0, 40))
+points(x = x1[11:20], y = y[11:20], col = "black", pch = 2, cex = 1)
+abline(coef = c(res$beta_hat[1] + res$beta_hat[3], res$beta_hat[2]), col = "lightblue", lwd = 2)
+abline(coef = c(res$beta_hat[1], res$beta_hat[2]), col = "blue", lwd = 2)
+```
+
+```{r}
+x1 = c(151, 92, 175, 31, 104, 277, 210, 120, 290, 238,
+       164, 272, 295, 68, 85, 224, 166, 305, 124, 246)
+x2 = c(rep(0, 10), rep(1, 10))
+y = c(17, 26, 21, 30, 22, 1, 12, 19, 4, 16,
+      28, 15, 11, 38, 31, 21, 20, 13, 30, 14)
+x1_x2 = x1 * x2
+X = cbind(x1, x2, x1_x2) ; X
+
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+res$beta_hat
+
+plot(x = x1[1:10], y = y[1:10], xlab = "적성검사점수", ylab = "총 소요시간",
+     main = "성별에 따른 회귀모형", col = "black", bg = "black", pch = 21, cex = 1, xlim = c(0, 320), ylim = c(0, 40))
+points(x = x1[11:20], y = y[11:20], col = "black", pch = 2, cex = 1)
+abline(coef = c((res$beta_hat[1] + res$beta_hat[3]), (res$beta_hat[2] + res$beta_hat[4])), col = "lightblue", lwd = 2)
+abline(coef = c(res$beta_hat[1], res$beta_hat[2]), col = "blue", lwd = 2)
+
+res$beta_hat[2] + res$beta_hat[4]
+res$beta_hat[2]
+```
+
+```{r}
+beta3_hat = res$beta_hat[4]
+XtX_inv = solve(res$XtX) ; var_beta3_hat = t(c(0,0,0,1)) %*% XtX_inv %*% c(0,0,0,1)
+t_0 = beta3_hat / sqrt(res$MSE * var_beta3_hat)
+t_alpha = qt(0.025, 16, lower.tail = FALSE)
+t_0 ; t_alpha
+```
+
+## 13.3 구간별 선형회귀를 적합하는 경우우
+
+```{r}
+x1 = c(480, 720, 570, 300, 800, 400, 340, 650)
+y = c(377, 249, 355, 475, 139, 452, 440, 257)
+x2 = ifelse(x1 < 500, 0, 1)
+x1_x2 = (x1 - 500) * x2 ; x1_x2
+X = cbind(x1, x1_x2)
+
+res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+res$beta_hat
+
+```
+
+## 13.4 반응변수가 가변수인 경우
+
+```{r}
+x1 = c(8, 22, 28, 4, 19, 13, 24, 32, 9, 13,
+       20, 5, 30, 11, 30, 6, 22, 12, 18, 4,
+       18, 25, 6, 29, 14)
+y = c(1, 1, 1, 0, 0, 1, 0, 1, 0, 0,
+      1, 0, 1, 0, 1, 0, 1, 0, 0, 0,
+      1, 1, 0, 0, 0)
+X = cbind(x1) ; n = dim(X)[1] ; one = c(rep(1, n))
+
+simp_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+simp_res$beta_hat
+
+simp_res$MSE * solve(simp_res$XtX)
+
+X = cbind(one, x1)
+p_hat = X %*% simp_res$beta_hat
+V_hat = p_hat * (1 - p_hat) ; V_hat = as.vector(V_hat)
+V_hat = diag(V_hat) ; V_hat_inv = solve(V_hat)
+
+beta_hat_gls = solve(t(X) %*% V_hat_inv %*% X) %*% t(X) %*% V_hat_inv %*% y
+beta_hat_gls
+
+solve(t(X) %*% V_hat_inv %*% X)
+```
+
+## 13.5 R 실습
+
+### 13.5.1 가변수를 사용한 회귀모형 추정
+
+$\textbf{Carseats 데이터}$ 이 데이터는 ISLR 패키지를 설치한 후 얻을 수 있으며, 400개 지점에서의 카시트 판매 정보를 담고 있다. `Carseats` 데이터에서 사용할 변수에 대한 설명은 다음과 같다.
+
+- `Sales` : 판매량 (단위 : 1,000)
+- `Price` : 각 지점에서의 카시트 가격
+- `ShelveLoc` : 진열대의 등급 (Bad, Medium, Good)
+- `Urban` : 도시 여부 (Yes, No)
+- `US` : 미국 여부 (Yes, No)
+
+위 데이터에서 `ShelveLoc`, `Urban`, `US`가 질적변수임을 알 수 있다. 판매량을 반응변수로 하여 중회귀모형을 적합한 결과를 살펴보자.
+
+```{r}
+library(ISLR)
+data(Carseats)
+```
+
+```{r}
+fit <- lm(Sales ~ ShelveLoc + Urban + US, data = Carseats)
+summary(fit)
+```
+
+
+
