@@ -101,3 +101,47 @@ class(colname_vec_res)
 length(colname_vec_res)
 
 colname_vec_res
+
+
+test_func <- function(A = 1, method = FALSE){
+  if (method == "one"){
+    print("one")
+    print(A)
+  }else{
+    print("FALSE")
+    print(A * 2)
+  }
+}
+
+test_ <- test_func(A = 1) 
+
+test_vec = c(1,2,3,4,5,6)
+
+test_mat = matrix(test_vec, ncol = 3)
+
+test_mat
+
+test_mat_mrow = colSums(test_mat)
+
+test_mat = rbind(test_mat, test_mat_mrow) ; test_mat
+
+test_mat_lcol = rowSums(test_mat)
+
+test_mat = cbind(test_mat, test_mat_lcol) ; test_mat
+
+
+
+test_vec = c(2,3,5)
+n = sum(test_vec)
+one = c(rep(1, n))
+w_1 = c(rep(-3/2, 2),rep(1,3),rep(0,5))
+w_2 = c(rep(-5/2, 2),rep(0,3),rep(1,5))
+X = cbind(one, w_1, w_2)
+X
+
+XtX = t(X) %*% X ; XtX
+
+solve(XtX)
+1/6
+7/30
+

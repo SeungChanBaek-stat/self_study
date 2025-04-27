@@ -73,7 +73,7 @@ mult_reg = function(X, y, alpha = 0.05, coeff = TRUE){
   
   return(list(XtX = XtX, Xty = Xty, beta_hat = beta_hat,
               SST = SST, SSR = SSR, SSE = SSE,
-              MSR = MSR, MSE = MSE))
+              MSR = MSR, MSE = MSE, anova_table = anova_table))
 }
 
 

@@ -1,0 +1,33 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-04-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+\begin{equation*}
+  Y = 
+  \begin{pmatrix}
+    (m_1 + m_2 + m_3 + m_4) & 0 & 0 \\
+    0 & m_2 \cfrac{m_1 + m_2}{m_1} & \cfrac{m_2 m_3}{m_1} & \cfrac{m_2 m_4}{m_1} \\
+    0 & \cfrac{m_3 m_2}{m_1} & m_3 \cfrac{m_1 + m_3}{m_1} & \cfrac{m_3 m_4}{m_1} \\
+    0 & \cfrac{m_4 m_2}{m_1} & \cfrac{m_4 m_3}{m_1} & m_4 \cfrac{m_1 + m_4}{m_1}
+  \end{pmatrix}
+\end{equation*}
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
