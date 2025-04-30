@@ -53,4 +53,33 @@ outliers = function(X, y, alpha = 0.05, MSE){
   return(list(e_i = e_i, h_ii = h_ii, r_i = r_i, rstar_i = rstar_i))
 }
 
+#######################################################################################
 
+# 분산팽창계수 (VIF : Variance Inflation Factor)
+vif_detect = function(X){
+  library(glue)
+  colname_vec = colnames(X)
+  X = as.matrix(X)
+  n = dim(X)[1] ; p = dim(X)[2]
+  
+  ## 표준화 시행
+  for (j in 1:p){
+    xbar_j = mean(X[,j])
+    s_jj = sqrt(sum((X[,j] - xbar_j)^2))
+    X[,j] = (X[,j] - xbar_j)/s_jj
+  }
+  
+  colnames(X) = colname_vec
+  
+  vif_vec = c(rep(0, p))
+  for (j in 1:p){
+    y = X[,c(j)] ; X_ = X[,-c(j)]
+    R2_j = t(y) %*% X_ %*% solve(t(X_) %*% X_) %*% t(X_) %*% y
+    var_beta_hat_j = 1/(1 - R2_j)
+    
+    vif_vec[j] = var_beta_hat_j
+  }
+  
+  names(vif_vec) = colname_vec
+  return(vif_vec)
+}

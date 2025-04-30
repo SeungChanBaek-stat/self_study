@@ -7,15 +7,33 @@ date: "2025-04-27"
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+만약 $l = 4$일 때
+귀무가설
+\begin{equation*}
+  H_0 : \alpha_1 = 2 \alpha_2 = 3 \alpha_3
+\end{equation*}
+을 검정하는 검정통계량 $F_0$를 구하시오.
+
+조건은 다음과 같다.
+
+$\displaystyle\sum_{i=1}^{l}\alpha_i = 0,~~  \displaystyle\sum_{j=1}^{m}\beta_j = 0, ~~ l =4$
+
+추가적인 힌트 :
+
+1. $C$의 형태, $\boldsymbol{\mathbf{\beta}} = (\mu, \alpha_1, \alpha_2, \alpha_3, \alpha_4, \beta_1, \cdots, \beta_m)^{\top}$의 형태
 
 \begin{equation*}
-  Y = 
+  C =
   \begin{pmatrix}
-    (m_1 + m_2 + m_3 + m_4) & 0 & 0 \\
-    0 & m_2 \cfrac{m_1 + m_2}{m_1} & \cfrac{m_2 m_3}{m_1} & \cfrac{m_2 m_4}{m_1} \\
-    0 & \cfrac{m_3 m_2}{m_1} & m_3 \cfrac{m_1 + m_3}{m_1} & \cfrac{m_3 m_4}{m_1} \\
-    0 & \cfrac{m_4 m_2}{m_1} & \cfrac{m_4 m_3}{m_1} & m_4 \cfrac{m_1 + m_4}{m_1}
-  \end{pmatrix}
+    0 & 1 & -2 & 0 & 0 & 0 & \cdots & 0 \\
+    0 & 0 & 2 & -3 & 0 & 0 & \cdots & 0
+  \end{pmatrix},
+\end{equation*}
+
+2. $F_0 = \cfrac{Q/2}{S_E/((l-1)(m-1))} \sim F(2, (l-1)(m-1))$에서 Q의 형태
+
+\begin{equation*}
+  Q = (C\hat{\boldsymbol{\mathbf{\beta}}})^{\top}[C(X^{\top}X)^{-1}C^{\top}]^{-1}(C\hat{\boldsymbol{\mathbf{\beta}}})
 \end{equation*}
 
 ```{r cars}
