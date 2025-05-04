@@ -255,3 +255,176 @@ summary(pls.fit)
 ```
 
 이 절에서 소개한 것은 부분최소제곱회귀의 기본이 되는 알고리즘으로 이보다 좀 더 빠르게 계산할 수 있는 다양한 알고리즘들이 개발되어 있으며, 이와 관련한 내용은 (참고문헌 15.10)을 참고한다.
+
+## 연습문제
+
+### 15.14
+
+```{r}
+source("functions/mult_reg.R", echo = F)
+source("functions/biased_reg.R", echo = F)
+library(ISLR)
+library(dplyr)
+
+Hitters <- na.omit(Hitters)
+dim(Hitters)
+
+Hitters
+
+hitters_dat = Hitters %>%
+  dplyr::select(AtBat:NewLeague)
+
+
+# hitters_dat[,"Salary"]
+X = hitters_dat %>%
+  dplyr::select(-Salary)
+y = hitters_dat %>%
+  dplyr::select(Salary)
+```
+
+먼저 가변수열을 만들어보자.
+
+```{r}
+X_dummy = dummy_var_gen(X)
+
+X_test = scale(X_dummy, center =TRUE, scale = TRUE)
+```
+
+#### 능형회귀
+
+생성된 가변수열로 구성된 데이터로 능형회귀를 적합해보면 다음과 같다.
+
+```{r}
+lambda = seq(0.01, 100, 0.01)
+ridge_res = ridge_reg(X = X_dummy, y = y, lambda = lambda)
+```
+
+능형추정값 $\hat{\beta}_j (k)$에 대하여 능형 트레이스를 그려 보면 다음과 같다.
+
+```{r}
+ridge_coef = ridge_res
+matplot(lambda, t(ridge_coef), type = "l",
+        xlab = expression(k), ylab = expression(bold(beta)(k)))
+```
+
+```{r}
+# 1) 기존 파라미터 백업
+op <- par(no.readonly = TRUE)
+
+# 2) 마진 조정 (아래, 왼쪽, 위, 오른쪽)
+#    기본값은 c(5, 4, 4, 2) + 0.1 인데, 
+#    오른쪽을 넉넉히 8로 늘려줌
+par(mar = c(5, 4, 4, 8) + 0.1)
+
+# 3) matplot 그리기
+matplot(lambda,
+        t(ridge_coef),
+        type = "l",
+        lty  = 1,
+        col  = 1:ncol(ridge_coef),
+        xlab = expression(k),
+        ylab = expression(bold(beta)(k)),
+        main = "야구선수 데이터의 능형트레이스")
+
+# 4) xpd=NA 로 클리핑 해제하고, legend 외부로 배치
+par(xpd = NA)
+legend("topright",
+       inset  = c(-0.25, 0),            # 오른쪽 바깥쪽으로 20% 뺌
+       legend = rownames(ridge_coef),
+       col    = 1:ncol(ridge_coef),
+       lty    = 1,
+       cex    = 0.6,
+       bg     = "white")
+
+# 5) 파라미터 원복
+par(op)
+```
+
+플롯에서 알 수 있듯이, 야구선수데이터의 설명변수가 모두 19개이므로 19개의 곡선이 그려진다. 능형추정량에서 $k = 0$ 인 경우 능형회귀추정량이 최소제곱추정량과 같음을 다음과 같이 확인할 수 있다.
+
+```{r}
+## 표준화
+X_dummy_scaled <- data.frame(scale(X_dummy))
+y_scaled <- data.frame(scale(y))
+X_mat = as.matrix(X_dummy_scaled) ; y_mat = as.matrix(y_scaled)
+
+print(glue("\n"))
+## 최소제곱추정법
+lse_res = mult_reg(X_mat, y_mat, alpha = 0.05, coeff = TRUE)
+print(t(round(lse_res$beta_hat, 2)))
+
+## k = 0 능형회귀
+ridge_k0_res = ridge_reg(X_mat, y_mat, lambda = c(0))
+print(t(round(ridge_k0_res, 2)))
+```
+
+또한 $k$ 가 큰 경우 회귀계수가 작아지는 경향을 다음과 같이 확인해볼 수 있다.
+
+```{r}
+round(ridge_coef[,lambda == "14.91"], 2)
+```
+기존 라이브러리를 활용한 코드는 다음과 같다.
+
+```{r}
+X_dummy_scaled <- data.frame(scale(X_dummy))
+y_scaled <- data.frame(scale(y))
+
+hitters_scaled <- cbind(X_dummy_scaled, y_scaled)
+rfit_scaled <- lm.ridge(Salary ~ ., data = hitters_scaled, lambda = seq(0.01, 100, 0.01))
+matplot(rfit_scaled$lambda, t(rfit_scaled$coef), type = "l",
+        xlab = expression(k), ylab = expression(bold(beta)(k)))
+```
+
+#### 주성분회귀
+
+주성분회귀도 능형회귀와 마찬가지로 설명변수에 대한 표준화가 필요하므로 이전에 사용한 `X_mat`, `y_mat`을 그대로 사용하기로 한다.
+
+```{r}
+pc_res = pc_reg(X_mat, y_mat, alpha = 0.05)
+
+R2 = pc_res$SSR / pc_res$SST ; R2
+```
+
+야구선수 데이터의 경우 산비탈 그림(scree plot)만으로 주성분의 개수 $g$를 결정하기는 어려워 보인다. $g= 3, 4, 5$ 모두 앞서 관측된 값에 비해 고윳값이 계속해서 작아지는데, $k= 8, 9$에서도 유의미한 수준으로 고윳값이 작아지기 때문에 elbow point를 정하기 애매해 보인다. 굳이 고르자면 $g = 5$일때가 적절해보이기는 하나 이것이 올바른 결정이라고 확신하기에는 어렵다.
+
+다음은 `lm()` 함수를 활용해서 각 주성분의 유의성을 확인하는 코드이다.
+
+```{r}
+eigen_decomp = eigen(cor(X_mat))
+Z = X_mat %*% eigen_decomp$vectors
+pcr_res = lm(y_mat ~ Z)
+summary(pcr_res)
+```
+
+앞서 산비탈그림에서 확인했듯이, 19개의 설명변수중 몇개의 새로운 설명변수만이 유의함을 확인할 수 있다. 또한 세 번째 설명변수 $Z_3$은 $Z_{14}, Z_{16}$보다 고윳값이 더 큰 경우에 해당되나, 반응변수 $y$와의 유의성은 오히려 이들보다 더 떨어짐을 알 수 있다. 이 결과를 통해 주성분 순서대로 반응변수와의 유의성이 보장되지 않음을 알 수 있다. 그리고 결정계수 값이 0.5461로, 주성분회귀모형은 반응변수를 제대로 설명하지 못한다는 점도 확인할 수 있다.
+
+#### 부분최소제곱회귀
+
+```{r}
+source("functions/biased_reg.R", echo = F)
+X = hitters_dat %>%
+  dplyr::select(-Salary)
+y = hitters_dat %>%
+  dplyr::select(Salary)
+
+X_dummy = dummy_var_gen(X)
+
+X_mat <- as.matrix(X_dummy)
+y_mat <- as.matrix(y)
+
+## 부분최소제곱회귀 - 방법 1 : 직교변환 불변 방법
+pls_res1 = pls_reg(X_mat, y_mat, alpha = 0.05, method = "ortho_invar")
+```
+
+```{r}
+cor(pls_res1$T_mat)
+```
+
+보다시피 가중치를 $X$의 직교변환에 대하여 반응변수 $y$의 예측이 불변하게끔 설정한 경우 $l=3$까지는 결정계수값이 크게 증가하다가 이후부터는 증가폭이 줄어드는 것을 확인할 수 있다. 또한 생성된 $T = [\mathbf{t}_1, \ldots, \mathbf{t}_{19}]$ 는 거의 단위행렬에 가까운 직교행렬로, $X$에 대한 연관성을 고려함과 동시에 반응변수 $y$와의 연관성까지 고려하는 행렬이다.
+
+```{r}
+## 부분최소제곱회귀 - 방법 2 : 척도변환 불변 방법
+# pls_res2 = pls_reg(X_mat, y_mat, alpha = 0.05, method = "scale_invar")
+```
+
+가중치를 $X$의 척도변환에 대하여 반응변수 $y$의 예측이 불변하게끔 설정한 경우에는 $l = 3$에서 PLS 알고리즘 계산이 singular value 문제로 인해 멈추는데, 이는 곧 야구선수 데이터에 대해서 첫 3개의 PLS 잠재변수들만이 핵심적인 정보를 담고 있다고 해석할 수 있다. 예를 들어 계산되는 $T_4$의 경우에는 앞에서 계산된 $T_1, T_2, T_3$와 거의 선형종속에 가까울 정도로 연관성이 높기 때문에 $T_4$ 계산은 의미가 없게 되는 것이다. 

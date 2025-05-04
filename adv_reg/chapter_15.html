@@ -371,7 +371,7 @@ vif_vec = vif_detect(X)
 
 vif_vec</code></pre>
 <pre><code>##       x1       x2       x3 
-## 1.150558 1.157734 1.319031</code></pre>
+## 1.015883 1.065959 1.053642</code></pre>
 </div>
 <div id="r-실습" class="section level2">
 <h2>15.6 R 실습</h2>
@@ -866,6 +866,1130 @@ cbind(yhat, yhat1)</code></pre>
 <p>이 절에서 소개한 것은 부분최소제곱회귀의 기본이 되는 알고리즘으로
 이보다 좀 더 빠르게 계산할 수 있는 다양한 알고리즘들이 개발되어 있으며,
 이와 관련한 내용은 (참고문헌 15.10)을 참고한다.</p>
+</div>
+</div>
+<div id="연습문제" class="section level2">
+<h2>연습문제</h2>
+<div id="section" class="section level3">
+<h3>15.14</h3>
+<pre class="r"><code>source(&quot;functions/mult_reg.R&quot;, echo = F)
+source(&quot;functions/biased_reg.R&quot;, echo = F)
+library(ISLR)
+library(dplyr)
+
+Hitters &lt;- na.omit(Hitters)
+dim(Hitters)</code></pre>
+<pre><code>## [1] 263  20</code></pre>
+<pre class="r"><code>Hitters</code></pre>
+<pre><code>##                    AtBat Hits HmRun Runs RBI Walks Years CAtBat CHits CHmRun
+## -Alan Ashby          315   81     7   24  38    39    14   3449   835     69
+## -Alvin Davis         479  130    18   66  72    76     3   1624   457     63
+## -Andre Dawson        496  141    20   65  78    37    11   5628  1575    225
+## -Andres Galarraga    321   87    10   39  42    30     2    396   101     12
+## -Alfredo Griffin     594  169     4   74  51    35    11   4408  1133     19
+## -Al Newman           185   37     1   23   8    21     2    214    42      1
+## -Argenis Salazar     298   73     0   24  24     7     3    509   108      0
+## -Andres Thomas       323   81     6   26  32     8     2    341    86      6
+## -Andre Thornton      401   92    17   49  66    65    13   5206  1332    253
+## -Alan Trammell       574  159    21  107  75    59    10   4631  1300     90
+## -Alex Trevino        202   53     4   31  26    27     9   1876   467     15
+## -Andy VanSlyke       418  113    13   48  61    47     4   1512   392     41
+## -Alan Wiggins        239   60     0   30  11    22     6   1941   510      4
+## -Bill Almon          196   43     7   29  27    30    13   3231   825     36
+## -Buddy Bell          568  158    20   89  75    73    15   8068  2273    177
+## -Buddy Biancalana    190   46     2   24   8    15     5    479   102      5
+## -Bruce Bochy         127   32     8   16  22    14     8    727   180     24
+## -Barry Bonds         413   92    16   72  48    65     1    413    92     16
+## -Bobby Bonilla       426  109     3   55  43    62     1    426   109      3
+## -Bob Brenly          472  116    16   60  62    74     6   1924   489     67
+## -Bill Buckner        629  168    18   73 102    40    18   8424  2464    164
+## -Brett Butler        587  163     4   92  51    70     6   2695   747     17
+## -Bob Dernier         324   73     4   32  18    22     7   1931   491     13
+## -Bo Diaz             474  129    10   50  56    40    10   2331   604     61
+## -Bill Doran          550  152     6   92  37    81     5   2308   633     32
+## -Brian Downing       513  137    20   90  95    90    14   5201  1382    166
+## -Billy Hatcher       419  108     6   55  36    22     3    591   149      8
+## -Brook Jacoby        583  168    17   83  80    56     5   1646   452     44
+## -Bob Kearney         204   49     6   23  25    12     7   1309   308     27
+## -Bill Madlock        379  106    10   38  60    30    14   6207  1906    146
+## -Bob Melvin          268   60     5   24  25    15     2    350    78      5
+## -BillyJo Robidoux    181   41     1   15  21    33     2    232    50      4
+## -Bill Schroeder      217   46     7   32  19     9     4    694   160     32
+## -Chris Bando         254   68     2   28  26    22     6    999   236     21
+## -Chris Brown         416  132     7   57  49    33     3    932   273     24
+## -Carmen Castillo     205   57     8   34  32     9     5    756   192     32
+## -Chili Davis         526  146    13   71  70    84     6   2648   715     77
+## -Carlton Fisk        457  101    14   42  63    22    17   6521  1767    281
+## -Curt Ford           214   53     2   30  29    23     2    226    59      2
+## -Carney Lansford     591  168    19   80  72    39     9   4478  1307    113
+## -Chet Lemon          403  101    12   45  53    39    12   5150  1429    166
+## -Candy Maldonado     405  102    18   49  85    20     6    950   231     29
+## -Carmelo Martinez    244   58     9   28  25    35     4   1335   333     49
+## -Craig Reynolds      313   78     6   32  41    12    12   3742   968     35
+## -Cal Ripken          627  177    25   98  81    70     6   3210   927    133
+## -Cory Snyder         416  113    24   58  69    16     1    416   113     24
+## -Chris Speier        155   44     6   21  23    15    16   6631  1634     98
+## -Curt Wilkerson      236   56     0   27  15    11     4   1115   270      1
+## -Dave Anderson       216   53     1   31  15    22     4    926   210      9
+## -Don Baylor          585  139    31   93  94    62    17   7546  1982    315
+## -Daryl Boston        199   53     5   29  22    21     3    514   120      8
+## -Darnell Coles       521  142    20   67  86    45     4    815   205     22
+## -Dave Concepcion     311   81     3   42  30    26    17   8247  2198    100
+## -Doug DeCinces       512  131    26   69  96    52    14   5347  1397    221
+## -Darrell Evans       507  122    29   78  85    91    18   7761  1947    347
+## -Dwight Evans        529  137    26   86  97    97    15   6661  1785    291
+## -Damaso Garcia       424  119     6   57  46    13     9   3651  1046     32
+## -Dan Gladden         351   97     4   55  29    39     4   1258   353     16
+## -Dave Henderson      388  103    15   59  47    39     6   2174   555     80
+## -Donnie Hill         339   96     4   37  29    23     4   1064   290     11
+## -Davey Lopes         255   70     7   49  35    43    15   6311  1661    154
+## -Don Mattingly       677  238    31  117 113    53     5   2223   737     93
+## -Dale Murphy         614  163    29   89  83    75    11   5017  1388    266
+## -Dwayne Murphy       329   83     9   50  39    56     9   3828   948    145
+## -Dave Parker         637  174    31   89 116    56    14   6727  2024    247
+## -Dan Pasqua          280   82    16   44  45    47     2    428   113     25
+## -Darrell Porter      155   41    12   21  29    22    16   5409  1338    181
+## -Dick Schofield      458  114    13   67  57    48     4   1350   298     28
+## -Don Slaught         314   83    13   39  46    16     5   1457   405     28
+## -Darryl Strawberry   475  123    27   76  93    72     4   1810   471    108
+## -Dale Sveum          317   78     7   35  35    32     1    317    78      7
+## -Danny Tartabull     511  138    25   76  96    61     3    592   164     28
+## -Denny Walling       382  119    13   54  58    36    12   2133   594     41
+## -Dave Winfield       565  148    24   90 104    77    14   7287  2083    305
+## -Eric Davis          415  115    27   97  71    68     3    711   184     45
+## -Eddie Milner        424  110    15   70  47    36     7   2130   544     38
+## -Eddie Murray        495  151    17   61  84    78    10   5624  1679    275
+## -Ed Romero           233   49     2   41  23    18     8   1350   336      7
+## -Frank White         566  154    22   76  84    43    14   6100  1583    131
+## -George Bell         641  198    31  101 108    41     5   2129   610     92
+## -Glenn Braggs        215   51     4   19  18    11     1    215    51      4
+## -George Brett        441  128    16   70  73    80    14   6675  2095    209
+## -Greg Brock          325   76    16   33  52    37     5   1506   351     71
+## -Gary Carter         490  125    24   81 105    62    13   6063  1646    271
+## -Glenn Davis         574  152    31   91 101    64     3    985   260     53
+## -Gary Gaetti         596  171    34   91 108    52     6   2862   728    107
+## -Greg Gagne          472  118    12   63  54    30     4    793   187     14
+## -George Hendrick     283   77    14   45  47    26    16   6840  1910    259
+## -Glenn Hubbard       408   94     4   42  36    66     9   3573   866     59
+## -Garth Iorg          327   85     3   30  44    20     8   2140   568     16
+## -Gary Matthews       370   96    21   49  46    60    15   6986  1972    231
+## -Graig Nettles       354   77    16   36  55    41    20   8716  2172    384
+## -Gary Pettis         539  139     5   93  58    69     5   1469   369     12
+## -Gary Redus          340   84    11   62  33    47     5   1516   376     42
+## -Garry Templeton     510  126     2   42  44    35    11   5562  1578     44
+## -Greg Walker         282   78    13   37  51    29     5   1649   453     73
+## -Gary Ward           380  120     5   54  51    31     8   3118   900     92
+## -Glenn Wilson        584  158    15   70  84    42     5   2358   636     58
+## -Harold Baines       570  169    21   72  88    38     7   3754  1077    140
+## -Hubie Brooks        306  104    14   50  58    25     7   2954   822     55
+## -Howard Johnson      220   54    10   30  39    31     5   1185   299     40
+## -Hal McRae           278   70     7   22  37    18    18   7186  2081    190
+## -Harold Reynolds     445   99     1   46  24    29     4    618   129      1
+## -Harry Spilman       143   39     5   18  30    15     9    639   151     16
+## -Herm Winningham     185   40     4   23  11    18     3    524   125      7
+## -Jesse Barfield      589  170    40  107 108    69     6   2325   634    128
+## -Juan Beniquez       343  103     6   48  36    40    15   4338  1193     70
+## -John Cangelosi      438  103     2   65  32    71     2    440   103      2
+## -Jose Canseco        600  144    33   85 117    65     2    696   173     38
+## -Joe Carter          663  200    29  108 121    32     4   1447   404     57
+## -Jack Clark          232   55     9   34  23    45    12   4405  1213    194
+## -Jose Cruz           479  133    10   48  72    55    17   7472  2147    153
+## -Jody Davis          528  132    21   61  74    41     6   2641   671     97
+## -Jim Dwyer           160   39     8   18  31    22    14   2128   543     56
+## -Julio Franco        599  183    10   80  74    32     5   2482   715     27
+## -Jim Gantner         497  136     7   58  38    26    11   3871  1066     40
+## -Johnny Grubb        210   70    13   32  51    28    15   4040  1130     97
+## -Jack Howell         151   41     4   26  21    19     2    288    68      9
+## -John Kruk           278   86     4   33  38    45     1    278    86      4
+## -Jeffrey Leonard     341   95     6   48  42    20    10   2964   808     81
+## -Jim Morrison        537  147    23   58  88    47    10   2744   730     97
+## -John Moses          399  102     3   56  34    34     5    670   167      4
+## -Jerry Mumphrey      309   94     5   37  32    26    13   4618  1330     57
+## -Jim Presley         616  163    27   83 107    32     3   1437   377     65
+## -Johnny Ray          579  174     7   67  78    58     6   3053   880     32
+## -Jeff Reed           165   39     2   13   9    16     3    196    44      2
+## -Jim Rice            618  200    20   98 110    62    13   7127  2163    351
+## -Jerry Royster       257   66     5   31  26    32    14   3910   979     33
+## -John Russell        315   76    13   35  60    25     3    630   151     24
+## -Juan Samuel         591  157    16   90  78    26     4   2020   541     52
+## -John Shelby         404   92    11   54  49    18     6   1354   325     30
+## -Joel Skinner        315   73     5   23  37    16     4    450   108      6
+## -Jim Sundberg        429   91    12   41  42    57    13   5590  1397     83
+## -Jose Uribe          453  101     3   46  43    61     3    948   218      6
+## -Joel Youngblood     184   47     5   20  28    18    11   3327   890     74
+## -Kevin Bass          591  184    20   83  79    38     5   1689   462     40
+## -Kal Daniels         181   58     6   34  23    22     1    181    58      6
+## -Kirk Gibson         441  118    28   84  86    68     8   2723   750    126
+## -Ken Griffey         490  150    21   69  58    35    14   6126  1839    121
+## -Keith Hernandez     551  171    13   94  83    94    13   6090  1840    128
+## -Kent Hrbek          550  147    29   85  91    71     6   2816   815    117
+## -Ken Landreaux       283   74     4   34  29    22    10   3919  1062     85
+## -Kevin McReynolds    560  161    26   89  96    66     4   1789   470     65
+## -Kevin Mitchell      328   91    12   51  43    33     2    342    94     12
+## -Keith Moreland      586  159    12   72  79    53     9   3082   880     83
+## -Ken Oberkfell       503  136     5   62  48    83    10   3423   970     20
+## -Ken Phelps          344   85    24   69  64    88     7    911   214     64
+## -Kirby Puckett       680  223    31  119  96    34     3   1928   587     35
+## -Kurt Stillwell      279   64     0   31  26    30     1    279    64      0
+## -Leon Durham         484  127    20   66  65    67     7   3006   844    116
+## -Len Dykstra         431  127     8   77  45    58     2    667   187      9
+## -Larry Herndon       283   70     8   33  37    27    12   4479  1222     94
+## -Lee Lacy            491  141    11   77  47    37    15   4291  1240     84
+## -Len Matuszek        199   52     9   26  28    21     6    805   191     30
+## -Lloyd Moseby        589  149    21   89  86    64     7   3558   928    102
+## -Lance Parrish       327   84    22   53  62    38    10   4273  1123    212
+## -Larry Parrish       464  128    28   67  94    52    13   5829  1552    210
+## -Larry Sheets        338   92    18   42  60    21     3    682   185     36
+## -Lou Whitaker        584  157    20   95  73    63    10   4704  1320     93
+## -Mike Aldrete        216   54     2   27  25    33     1    216    54      2
+## -Marty Barrett       625  179     4   94  60    65     5   1696   476     12
+## -Mike Davis          489  131    19   77  55    34     7   2051   549     62
+## -Mike Diaz           209   56    12   22  36    19     2    216    58     12
+## -Mariano Duncan      407   93     8   47  30    30     2    969   230     14
+## -Mike Easler         490  148    14   64  78    49    13   3400  1000    113
+## -Mel Hall            442  131    18   68  77    33     6   1416   398     47
+## -Mike Heath          288   65     8   30  36    27     9   2815   698     55
+## -Mike Kingery        209   54     3   25  14    12     1    209    54      3
+## -Mike LaValliere     303   71     3   18  30    36     3    344    76      3
+## -Mike Marshall       330   77    19   47  53    27     6   1928   516     90
+## -Mike Pagliarulo     504  120    28   71  71    54     3   1085   259     54
+## -Mark Salas          258   60     8   28  33    18     3    638   170     17
+## -Mike Schmidt         20    1     0    0   0     0     2     41     9      2
+## -Mike Scioscia       374   94     5   36  26    62     7   1968   519     26
+## -Mickey Tettleton    211   43    10   26  35    39     3    498   116     14
+## -Milt Thompson       299   75     6   38  23    26     3    580   160      8
+## -Mitch Webster       576  167     8   89  49    57     4    822   232     19
+## -Mookie Wilson       381  110     9   61  45    32     7   3015   834     40
+## -Marvell Wynne       288   76     7   34  37    15     4   1644   408     16
+## -Mike Young          369   93     9   43  42    49     5   1258   323     54
+## -Ozzie Guillen       547  137     2   58  47    12     2   1038   271      3
+## -Oddibe McDowell     572  152    18  105  49    65     2    978   249     36
+## -Ozzie Smith         514  144     0   67  54    79     9   4739  1169     13
+## -Ozzie Virgil        359   80    15   45  48    63     7   1493   359     61
+## -Phil Bradley        526  163    12   88  50    77     4   1556   470     38
+## -Phil Garner         313   83     9   43  41    30    14   5885  1543    104
+## -Pete Incaviglia     540  135    30   82  88    55     1    540   135     30
+## -Paul Molitor        437  123     9   62  55    40     9   4139  1203     79
+## -Pete Rose           237   52     0   15  25    30    24  14053  4256    160
+## -Pat Sheridan        236   56     6   41  19    21     5   1257   329     24
+## -Pat Tabler          473  154     6   61  48    29     6   1966   566     29
+## -Rafael Belliard     309   72     0   33  31    26     5    354    82      0
+## -Rick Burleson       271   77     5   35  29    33    12   4933  1358     48
+## -Randy Bush          357   96     7   50  45    39     5   1394   344     43
+## -Rick Cerone         216   56     4   22  18    15    12   2796   665     43
+## -Ron Cey             256   70    13   42  36    44    16   7058  1845    312
+## -Rob Deer            466  108    33   75  86    72     3    652   142     44
+## -Rick Dempsey        327   68    13   42  29    45    18   3949   939     78
+## -Ron Hassey          341  110     9   45  49    46     9   2331   658     50
+## -Rickey Henderson    608  160    28  130  74    89     8   4071  1182    103
+## -Reggie Jackson      419  101    18   65  58    92    20   9528  2510    548
+## -Ron Kittle          376   82    21   42  60    35     5   1770   408    115
+## -Ray Knight          486  145    11   51  76    40    11   3967  1102     67
+## -Rick Leach          246   76     5   35  39    13     6    912   234     12
+## -Rick Manning        205   52     8   31  27    17    12   5134  1323     56
+## -Rance Mulliniks     348   90    11   50  45    43    10   2288   614     43
+## -Ron Oester          523  135     8   52  44    52     9   3368   895     39
+## -Rey Quinones        312   68     2   32  22    24     1    312    68      2
+## -Rafael Ramirez      496  119     8   57  33    21     7   3358   882     36
+## -Ronn Reynolds       126   27     3    8  10     5     4    239    49      3
+## -Ron Roenicke        275   68     5   42  42    61     6    961   238     16
+## -Ryne Sandberg       627  178    14   68  76    46     6   3146   902     74
+## -Rafael Santana      394   86     1   38  28    36     4   1089   267      3
+## -Rick Schu           208   57     8   32  25    18     3    653   170     17
+## -Ruben Sierra        382  101    16   50  55    22     1    382   101     16
+## -Roy Smalley         459  113    20   59  57    68    12   5348  1369    155
+## -Robby Thompson      549  149     7   73  47    42     1    549   149      7
+## -Rob Wilfong         288   63     3   25  33    16    10   2682   667     38
+## -Robin Yount         522  163     9   82  46    62    13   7037  2019    153
+## -Steve Balboni       512  117    29   54  88    43     6   1750   412    100
+## -Scott Bradley       220   66     5   20  28    13     3    290    80      5
+## -Sid Bream           522  140    16   73  77    60     4    730   185     22
+## -Steve Buechele      461  112    18   54  54    35     2    680   160     24
+## -Shawon Dunston      581  145    17   66  68    21     2    831   210     21
+## -Scott Fletcher      530  159     3   82  50    47     6   1619   426     11
+## -Steve Garvey        557  142    21   58  81    23    18   8759  2583    271
+## -Steve Jeltz         439   96     0   44  36    65     4    711   148      1
+## -Steve Lombardozzi   453  103     8   53  33    52     2    507   123      8
+## -Spike Owen          528  122     1   67  45    51     4   1716   403     12
+## -Steve Sax           633  210     6   91  56    59     6   3070   872     19
+## -Tony Bernazard      562  169    17   88  73    53     8   3181   841     61
+## -Tom Brookens        281   76     3   42  25    20     8   2658   657     48
+## -Tom Brunansky       593  152    23   69  75    53     6   2765   686    133
+## -Tony Fernandez      687  213    10   91  65    27     4   1518   448     15
+## -Tim Flannery        368  103     3   48  28    54     8   1897   493      9
+## -Tom Foley           263   70     1   26  23    30     4    888   220      9
+## -Tony Gwynn          642  211    14  107  59    52     5   2364   770     27
+## -Terry Harper        265   68     8   26  30    29     7   1337   339     32
+## -Tommy Herr          559  141     2   48  61    73     8   3162   874     16
+## -Tim Hulett          520  120    17   53  44    21     4    927   227     22
+## -Terry Kennedy        19    4     1    2   3     1     1     19     4      1
+## -Tito Landrum        205   43     2   24  17    20     7    854   219     12
+## -Tim Laudner         193   47    10   21  29    24     6   1136   256     42
+## -Tom Paciorek        213   61     4   17  22     3    17   4061  1145     83
+## -Tony Pena           510  147    10   56  52    53     7   2872   821     63
+## -Terry Pendleton     578  138     1   56  59    34     3   1399   357      7
+## -Tony Phillips       441  113     5   76  52    76     5   1546   397     17
+## -Terry Puhl          172   42     3   17  14    15    10   4086  1150     57
+## -Ted Simmons         127   32     4   14  25    12    19   8396  2402    242
+## -Tim Teufel          279   69     4   35  31    32     4   1359   355     31
+## -Tim Wallach         480  112    18   50  71    44     7   3031   771    110
+## -Vince Coleman       600  139     0   94  29    60     2   1236   309      1
+## -Von Hayes           610  186    19  107  98    74     6   2728   753     69
+## -Vance Law           360   81     5   37  44    37     7   2268   566     41
+## -Wally Backman       387  124     1   67  27    36     7   1775   506      6
+## -Wade Boggs          580  207     8  107  71   105     5   2778   978     32
+## -Will Clark          408  117    11   66  41    34     1    408   117     11
+## -Wally Joyner        593  172    22   82 100    57     1    593   172     22
+## -Willie McGee        497  127     7   65  48    37     5   2703   806     32
+## -Willie Randolph     492  136     5   76  50    94    12   5511  1511     39
+## -Wayne Tolleson      475  126     3   61  43    52     6   1700   433      7
+## -Willie Upshaw       573  144     9   85  60    78     8   3198   857     97
+## -Willie Wilson       631  170     9   77  44    31    11   4908  1457     30
+##                    CRuns CRBI CWalks League Division PutOuts Assists Errors
+## -Alan Ashby          321  414    375      N        W     632      43     10
+## -Alvin Davis         224  266    263      A        W     880      82     14
+## -Andre Dawson        828  838    354      N        E     200      11      3
+## -Andres Galarraga     48   46     33      N        E     805      40      4
+## -Alfredo Griffin     501  336    194      A        W     282     421     25
+## -Al Newman            30    9     24      N        E      76     127      7
+## -Argenis Salazar      41   37     12      A        W     121     283      9
+## -Andres Thomas        32   34      8      N        W     143     290     19
+## -Andre Thornton      784  890    866      A        E       0       0      0
+## -Alan Trammell       702  504    488      A        E     238     445     22
+## -Alex Trevino        192  186    161      N        W     304      45     11
+## -Andy VanSlyke       205  204    203      N        E     211      11      7
+## -Alan Wiggins        309  103    207      A        E     121     151      6
+## -Bill Almon          376  290    238      N        E      80      45      8
+## -Buddy Bell         1045  993    732      N        W     105     290     10
+## -Buddy Biancalana     65   23     39      A        W     102     177     16
+## -Bruce Bochy          67   82     56      N        W     202      22      2
+## -Barry Bonds          72   48     65      N        E     280       9      5
+## -Bobby Bonilla        55   43     62      A        W     361      22      2
+## -Bob Brenly          242  251    240      N        W     518      55      3
+## -Bill Buckner       1008 1072    402      A        E    1067     157     14
+## -Brett Butler        442  198    317      A        E     434       9      3
+## -Bob Dernier         291  108    180      N        E     222       3      3
+## -Bo Diaz             246  327    166      N        W     732      83     13
+## -Bill Doran          349  182    308      N        W     262     329     16
+## -Brian Downing       763  734    784      A        W     267       5      3
+## -Billy Hatcher        80   46     31      N        W     226       7      4
+## -Brook Jacoby        219  208    136      A        E     109     292     25
+## -Bob Kearney         126  132     66      A        W     419      46      5
+## -Bill Madlock        859  803    571      N        W      72     170     24
+## -Bob Melvin           34   29     18      N        W     442      59      6
+## -BillyJo Robidoux     20   29     45      A        E     326      29      5
+## -Bill Schroeder       86   76     32      A        E     307      25      1
+## -Chris Bando         108  117    118      A        E     359      30      4
+## -Chris Brown         113  121     80      N        W      73     177     18
+## -Carmen Castillo     117  107     51      A        E      58       4      4
+## -Chili Davis         352  342    289      N        W     303       9      9
+## -Carlton Fisk       1003  977    619      A        W     389      39      4
+## -Curt Ford            32   32     27      N        E     109       7      3
+## -Carney Lansford     634  563    319      A        W      67     147      4
+## -Chet Lemon          747  666    526      A        E     316       6      5
+## -Candy Maldonado      99  138     64      N        W     161      10      3
+## -Carmelo Martinez    164  179    194      N        W     142      14      2
+## -Craig Reynolds      409  321    170      N        W     106     206      7
+## -Cal Ripken          529  472    313      A        E     240     482     13
+## -Cory Snyder          58   69     16      A        E     203      70     10
+## -Chris Speier        698  661    777      N        E      53      88      3
+## -Curt Wilkerson      116   64     57      A        W     125     199     13
+## -Dave Anderson       118   69    114      N        W      73     152     11
+## -Don Baylor         1141 1179    727      A        E       0       0      0
+## -Daryl Boston         57   40     39      A        W     152       3      5
+## -Darnell Coles        99  103     78      A        E     107     242     23
+## -Dave Concepcion     950  909    690      N        W     153     223     10
+## -Doug DeCinces       712  815    548      A        W     119     216     12
+## -Darrell Evans      1175 1152   1380      A        E     808     108      2
+## -Dwight Evans       1082  949    989      A        E     280      10      5
+## -Damaso Garcia       461  301    112      A        E     224     286      8
+## -Dan Gladden         196  110    117      N        W     226       7      3
+## -Dave Henderson      285  274    186      A        W     182       9      4
+## -Donnie Hill         123  108     55      A        W     104     213      9
+## -Davey Lopes        1019  608    820      N        E      51      54      8
+## -Don Mattingly       349  401    171      A        E    1377     100      6
+## -Dale Murphy         813  822    617      N        W     303       6      6
+## -Dwayne Murphy       575  528    635      A        W     276       6      2
+## -Dave Parker         978 1093    495      N        W     278       9      9
+## -Dan Pasqua           61   70     63      A        E     148       4      2
+## -Darrell Porter      746  805    875      A        W     165       9      1
+## -Dick Schofield      160  123    122      A        W     246     389     18
+## -Don Slaught         156  159     76      A        W     533      40      4
+## -Darryl Strawberry   292  343    267      N        E     226      10      6
+## -Dale Sveum           35   35     32      A        E      45     122     26
+## -Danny Tartabull      87  110     71      A        W     157       7      8
+## -Denny Walling       287  294    227      N        W      59     156      9
+## -Dave Winfield      1135 1234    791      A        E     292       9      5
+## -Eric Davis          156  119     99      N        W     274       2      7
+## -Eddie Milner        335  174    258      N        W     292       6      3
+## -Eddie Murray        884 1015    709      A        E    1045      88     13
+## -Ed Romero           166  122    106      A        E     102     132     10
+## -Frank White         743  693    300      A        W     316     439     10
+## -George Bell         297  319    117      A        E     269      17     10
+## -Glenn Braggs         19   18     11      A        E     116       5     12
+## -George Brett       1072 1050    695      A        W      97     218     16
+## -Greg Brock          195  219    214      N        W     726      87      3
+## -Gary Carter         847  999    680      N        E     869      62      8
+## -Glenn Davis         148  173     95      N        W    1253     111     11
+## -Gary Gaetti         361  401    224      A        W     118     334     21
+## -Greg Gagne          102   80     50      A        W     228     377     26
+## -George Hendrick     915 1067    546      A        W     144       6      5
+## -Glenn Hubbard       429  365    410      N        W     282     487     19
+## -Garth Iorg          216  208     93      A        E      91     185     12
+## -Gary Matthews      1070  955    921      N        E     137       5      9
+## -Graig Nettles      1172 1267   1057      N        W      83     174     16
+## -Gary Pettis         247  126    198      A        W     462       9      7
+## -Gary Redus          284  141    219      N        E     185       8      4
+## -Garry Templeton     703  519    256      N        W     207     358     20
+## -Greg Walker         211  280    138      A        W     670      57      5
+## -Gary Ward           444  419    240      A        W     237       8      1
+## -Glenn Wilson        265  316    134      N        E     331      20      4
+## -Harold Baines       492  589    263      A        W     295      15      5
+## -Hubie Brooks        313  377    187      N        E     116     222     15
+## -Howard Johnson      145  154    128      N        E      50     136     20
+## -Hal McRae           935 1088    643      A        W       0       0      0
+## -Harold Reynolds      72   31     48      A        W     278     415     16
+## -Harry Spilman        80   97     61      N        W     138      15      1
+## -Herm Winningham      58   37     47      N        E      97       2      2
+## -Jesse Barfield      371  376    238      A        E     368      20      3
+## -Juan Beniquez       581  421    325      A        E     211      56     13
+## -John Cangelosi       67   32     71      A        W     276       7      9
+## -Jose Canseco        101  130     69      A        W     319       4     14
+## -Joe Carter          210  222     68      A        E     241       8      6
+## -Jack Clark          702  705    625      N        E     623      35      3
+## -Jose Cruz           980 1032    854      N        W     237       5      4
+## -Jody Davis          273  383    226      N        E     885     105      8
+## -Jim Dwyer           304  268    298      A        E      33       3      0
+## -Julio Franco        330  326    158      A        E     231     374     18
+## -Jim Gantner         450  367    241      A        E     304     347     10
+## -Johnny Grubb        544  462    551      A        E       0       0      0
+## -Jack Howell          45   39     35      A        W      28      56      2
+## -John Kruk            33   38     45      N        W     102       4      2
+## -Jeffrey Leonard     379  428    221      N        W     158       4      5
+## -Jim Morrison        302  351    174      N        E      92     257     20
+## -John Moses           89   48     54      A        W     211       9      3
+## -Jerry Mumphrey      616  522    436      N        E     161       3      3
+## -Jim Presley         181  227     82      A        W     110     308     15
+## -Johnny Ray          366  337    218      N        E     280     479      5
+## -Jeff Reed            18   10     18      A        W     332      19      2
+## -Jim Rice           1104 1289    564      A        E     330      16      8
+## -Jerry Royster       518  324    382      N        W      87     166     14
+## -John Russell         68   94     55      N        E     498      39     13
+## -Juan Samuel         310  226     91      N        E     290     440     25
+## -John Shelby         188  135     63      A        E     222       5      5
+## -Joel Skinner         38   46     28      A        W     227      15      3
+## -Jim Sundberg        578  579    644      A        W     686      46      4
+## -Jose Uribe           96   72     91      N        W     249     444     16
+## -Joel Youngblood     419  382    304      N        W      49       2      0
+## -Kevin Bass          219  195     82      N        W     303      12      5
+## -Kal Daniels          34   23     22      N        W      88       0      3
+## -Kirk Gibson         433  420    309      A        E     190       2      2
+## -Ken Griffey         983  707    600      A        E      96       5      3
+## -Keith Hernandez     969  900    917      N        E    1199     149      5
+## -Kent Hrbek          405  474    319      A        W    1218     104     10
+## -Ken Landreaux       505  456    283      N        W     145       5      7
+## -Kevin McReynolds    233  260    155      N        W     332       9      8
+## -Kevin Mitchell       51   44     33      N        E     145      59      8
+## -Keith Moreland      363  477    295      N        E     181      13      4
+## -Ken Oberkfell       408  303    414      N        W      65     258      8
+## -Ken Phelps          150  156    187      A        W       0       0      0
+## -Kirby Puckett       262  201     91      A        W     429       8      6
+## -Kurt Stillwell       31   26     30      N        W     107     205     16
+## -Leon Durham         436  458    377      N        E    1231      80      7
+## -Len Dykstra         117   64     88      N        E     283       8      3
+## -Larry Herndon       557  483    307      A        E     156       2      2
+## -Lee Lacy            615  430    340      A        E     239       8      2
+## -Len Matuszek        113  119     87      N        W     235      22      5
+## -Lloyd Moseby        513  471    351      A        E     371       6      6
+## -Lance Parrish       577  700    334      A        E     483      48      6
+## -Larry Parrish       740  840    452      A        W       0       0      0
+## -Larry Sheets         88  112     50      A        E       0       0      0
+## -Lou Whitaker        724  522    576      A        E     276     421     11
+## -Mike Aldrete         27   25     33      N        W     317      36      1
+## -Marty Barrett       216  163    166      A        E     303     450     14
+## -Mike Davis          300  263    153      A        W     310       9      9
+## -Mike Diaz            24   37     19      N        E     201       6      3
+## -Mariano Duncan      121   69     68      N        W     172     317     25
+## -Mike Easler         445  491    301      A        E       0       0      0
+## -Mel Hall            210  203    136      A        E     233       7      7
+## -Mike Heath          315  325    189      N        E     259      30     10
+## -Mike Kingery         25   14     12      A        W     102       6      3
+## -Mike LaValliere      20   36     45      N        E     468      47      6
+## -Mike Marshall       247  288    161      N        W     149       8      6
+## -Mike Pagliarulo     150  167    114      A        E     103     283     19
+## -Mark Salas           80   75     36      A        W     358      32      8
+## -Mike Schmidt          6    7      4      N        E      78     220      6
+## -Mike Scioscia       181  199    288      N        W     756      64     15
+## -Mickey Tettleton     59   55     78      A        W     463      32      8
+## -Milt Thompson        71   33     44      N        E     212       1      2
+## -Mitch Webster       132   83     79      N        E     325      12      8
+## -Mookie Wilson       451  249    168      N        E     228       7      5
+## -Marvell Wynne       198  120    113      N        W     203       3      3
+## -Mike Young          181  177    157      A        E     149       1      6
+## -Ozzie Guillen       129   80     24      A        W     261     459     22
+## -Oddibe McDowell     168   91    101      A        W     325      13      3
+## -Ozzie Smith         583  374    528      N        E     229     453     15
+## -Ozzie Virgil        176  202    175      N        W     682      93     13
+## -Phil Bradley        245  167    174      A        W     250      11      1
+## -Phil Garner         751  714    535      N        W      58     141     23
+## -Pete Incaviglia      82   88     55      A        W     157       6     14
+## -Paul Molitor        676  390    364      A        E      82     170     15
+## -Pete Rose          2165 1314   1566      N        W     523      43      6
+## -Pat Sheridan        166  125    105      A        E     172       1      4
+## -Pat Tabler          250  252    178      A        E     846      84      9
+## -Rafael Belliard      41   32     26      N        E     117     269     12
+## -Rick Burleson       630  435    403      A        W      62      90      3
+## -Randy Bush          178  192    136      A        W     167       2      4
+## -Rick Cerone         266  304    198      A        E     391      44      4
+## -Ron Cey             965 1128    990      N        E      41     118      8
+## -Rob Deer            102  109    102      A        E     286       8      8
+## -Rick Dempsey        438  380    466      A        E     659      53      7
+## -Ron Hassey          249  322    274      A        E     251       9      4
+## -Rickey Henderson    862  417    708      A        E     426       4      6
+## -Reggie Jackson     1509 1659   1342      A        W       0       0      0
+## -Ron Kittle          238  299    157      A        W       0       0      0
+## -Ray Knight          410  497    284      N        E      88     204     16
+## -Rick Leach          102   96     80      A        E      44       0      1
+## -Rick Manning        643  445    459      A        E     155       3      2
+## -Rance Mulliniks     295  273    269      A        E      60     176      6
+## -Ron Oester          377  284    296      N        W     367     475     19
+## -Rey Quinones         32   22     24      A        E      86     150     15
+## -Rafael Ramirez      365  280    165      N        W     155     371     29
+## -Ronn Reynolds        16   13     14      N        E     190       2      9
+## -Ron Roenicke        128  104    172      N        E     181       3      2
+## -Ryne Sandberg       494  345    242      N        E     309     492      5
+## -Rafael Santana       94   71     76      N        E     203     369     16
+## -Rick Schu            98   54     62      N        E      42      94     13
+## -Ruben Sierra         50   55     22      A        W     200       7      6
+## -Roy Smalley         713  660    735      A        W       0       0      0
+## -Robby Thompson       73   47     42      N        W     255     450     17
+## -Rob Wilfong         315  259    204      A        W     135     257      7
+## -Robin Yount        1043  827    535      A        E     352       9      1
+## -Steve Balboni       204  276    155      A        W    1236      98     18
+## -Scott Bradley        27   31     15      A        W     281      21      3
+## -Sid Bream            93  106     86      N        E    1320     166     17
+## -Steve Buechele       76   75     49      A        W     111     226     11
+## -Shawon Dunston      106   86     40      N        E     320     465     32
+## -Scott Fletcher      218  149    163      A        W     196     354     15
+## -Steve Garvey       1138 1299    478      N        W    1160      53      7
+## -Steve Jeltz          68   56     99      N        E     229     406     22
+## -Steve Lombardozzi    63   39     58      A        W     289     407      6
+## -Spike Owen          211  146    155      A        W     209     372     17
+## -Steve Sax           420  230    274      N        W     367     432     16
+## -Tony Bernazard      450  342    373      A        E     351     442     17
+## -Tom Brookens        324  300    179      A        E     106     144      7
+## -Tom Brunansky       369  384    321      A        W     315      10      6
+## -Tony Fernandez      196  137     89      A        E     294     445     13
+## -Tim Flannery        207  162    198      N        W     209     246      3
+## -Tom Foley            83   82     86      N        E      81     147      4
+## -Tony Gwynn          352  230    193      N        W     337      19      4
+## -Terry Harper        135  163    128      N        W      92       5      3
+## -Tommy Herr          421  349    359      N        E     352     414      9
+## -Tim Hulett          106   80     52      A        W      70     144     11
+## -Terry Kennedy         2    3      1      N        W     692      70      8
+## -Tito Landrum        105   99     71      N        E     131       6      1
+## -Tim Laudner         129  139    106      A        W     299      13      5
+## -Tom Paciorek        488  491    244      A        W     178      45      4
+## -Tony Pena           307  340    174      N        E     810      99     18
+## -Terry Pendleton     149  161     87      N        E     133     371     20
+## -Tony Phillips       226  149    191      A        W     160     290     11
+## -Terry Puhl          579  363    406      N        W      65       0      0
+## -Ted Simmons        1048 1348    819      N        W     167      18      6
+## -Tim Teufel          180  148    158      N        E     133     173      9
+## -Tim Wallach         338  406    239      N        E      94     270     16
+## -Vince Coleman       201   69    110      N        E     300      12      9
+## -Von Hayes           399  366    286      N        E    1182      96     13
+## -Vance Law           279  257    246      N        E     170     284      3
+## -Wally Backman       272  125    194      N        E     186     290     17
+## -Wade Boggs          474  322    417      A        E     121     267     19
+## -Will Clark           66   41     34      N        W     942      72     11
+## -Wally Joyner         82  100     57      A        W    1222     139     15
+## -Willie McGee        379  311    138      N        E     325       9      3
+## -Willie Randolph     897  451    875      A        E     313     381     20
+## -Wayne Tolleson      217   93    146      A        W      37     113      7
+## -Willie Upshaw       470  420    332      A        E    1314     131     12
+## -Willie Wilson       775  357    249      A        W     408       4      3
+##                      Salary NewLeague
+## -Alan Ashby         475.000         N
+## -Alvin Davis        480.000         A
+## -Andre Dawson       500.000         N
+## -Andres Galarraga    91.500         N
+## -Alfredo Griffin    750.000         A
+## -Al Newman           70.000         A
+## -Argenis Salazar    100.000         A
+## -Andres Thomas       75.000         N
+## -Andre Thornton    1100.000         A
+## -Alan Trammell      517.143         A
+## -Alex Trevino       512.500         N
+## -Andy VanSlyke      550.000         N
+## -Alan Wiggins       700.000         A
+## -Bill Almon         240.000         N
+## -Buddy Bell         775.000         N
+## -Buddy Biancalana   175.000         A
+## -Bruce Bochy        135.000         N
+## -Barry Bonds        100.000         N
+## -Bobby Bonilla      115.000         N
+## -Bob Brenly         600.000         N
+## -Bill Buckner       776.667         A
+## -Brett Butler       765.000         A
+## -Bob Dernier        708.333         N
+## -Bo Diaz            750.000         N
+## -Bill Doran         625.000         N
+## -Brian Downing      900.000         A
+## -Billy Hatcher      110.000         N
+## -Brook Jacoby       612.500         A
+## -Bob Kearney        300.000         A
+## -Bill Madlock       850.000         N
+## -Bob Melvin          90.000         N
+## -BillyJo Robidoux    67.500         A
+## -Bill Schroeder     180.000         A
+## -Chris Bando        305.000         A
+## -Chris Brown        215.000         N
+## -Carmen Castillo    247.500         A
+## -Chili Davis        815.000         N
+## -Carlton Fisk       875.000         A
+## -Curt Ford           70.000         N
+## -Carney Lansford   1200.000         A
+## -Chet Lemon         675.000         A
+## -Candy Maldonado    415.000         N
+## -Carmelo Martinez   340.000         N
+## -Craig Reynolds     416.667         N
+## -Cal Ripken        1350.000         A
+## -Cory Snyder         90.000         A
+## -Chris Speier       275.000         N
+## -Curt Wilkerson     230.000         A
+## -Dave Anderson      225.000         N
+## -Don Baylor         950.000         A
+## -Daryl Boston        75.000         A
+## -Darnell Coles      105.000         A
+## -Dave Concepcion    320.000         N
+## -Doug DeCinces      850.000         A
+## -Darrell Evans      535.000         A
+## -Dwight Evans       933.333         A
+## -Damaso Garcia      850.000         N
+## -Dan Gladden        210.000         A
+## -Dave Henderson     325.000         A
+## -Donnie Hill        275.000         A
+## -Davey Lopes        450.000         N
+## -Don Mattingly     1975.000         A
+## -Dale Murphy       1900.000         N
+## -Dwayne Murphy      600.000         A
+## -Dave Parker       1041.667         N
+## -Dan Pasqua         110.000         A
+## -Darrell Porter     260.000         A
+## -Dick Schofield     475.000         A
+## -Don Slaught        431.500         A
+## -Darryl Strawberry 1220.000         N
+## -Dale Sveum          70.000         A
+## -Danny Tartabull    145.000         A
+## -Denny Walling      595.000         N
+## -Dave Winfield     1861.460         A
+## -Eric Davis         300.000         N
+## -Eddie Milner       490.000         N
+## -Eddie Murray      2460.000         A
+## -Ed Romero          375.000         A
+## -Frank White        750.000         A
+## -George Bell       1175.000         A
+## -Glenn Braggs        70.000         A
+## -George Brett      1500.000         A
+## -Greg Brock         385.000         A
+## -Gary Carter       1925.571         N
+## -Glenn Davis        215.000         N
+## -Gary Gaetti        900.000         A
+## -Greg Gagne         155.000         A
+## -George Hendrick    700.000         A
+## -Glenn Hubbard      535.000         N
+## -Garth Iorg         362.500         A
+## -Gary Matthews      733.333         N
+## -Graig Nettles      200.000         N
+## -Gary Pettis        400.000         A
+## -Gary Redus         400.000         A
+## -Garry Templeton    737.500         N
+## -Greg Walker        500.000         A
+## -Gary Ward          600.000         A
+## -Glenn Wilson       662.500         N
+## -Harold Baines      950.000         A
+## -Hubie Brooks       750.000         N
+## -Howard Johnson     297.500         N
+## -Hal McRae          325.000         A
+## -Harold Reynolds     87.500         A
+## -Harry Spilman      175.000         N
+## -Herm Winningham     90.000         N
+## -Jesse Barfield    1237.500         A
+## -Juan Beniquez      430.000         A
+## -John Cangelosi     100.000         N
+## -Jose Canseco       165.000         A
+## -Joe Carter         250.000         A
+## -Jack Clark        1300.000         N
+## -Jose Cruz          773.333         N
+## -Jody Davis        1008.333         N
+## -Jim Dwyer          275.000         A
+## -Julio Franco       775.000         A
+## -Jim Gantner        850.000         A
+## -Johnny Grubb       365.000         A
+## -Jack Howell         95.000         A
+## -John Kruk          110.000         N
+## -Jeffrey Leonard    100.000         N
+## -Jim Morrison       277.500         N
+## -John Moses          80.000         A
+## -Jerry Mumphrey     600.000         N
+## -Jim Presley        200.000         A
+## -Johnny Ray         657.000         N
+## -Jeff Reed           75.000         N
+## -Jim Rice          2412.500         A
+## -Jerry Royster      250.000         A
+## -John Russell       155.000         N
+## -Juan Samuel        640.000         N
+## -John Shelby        300.000         A
+## -Joel Skinner       110.000         A
+## -Jim Sundberg       825.000         N
+## -Jose Uribe         195.000         N
+## -Joel Youngblood    450.000         N
+## -Kevin Bass         630.000         N
+## -Kal Daniels         86.500         N
+## -Kirk Gibson       1300.000         A
+## -Ken Griffey       1000.000         N
+## -Keith Hernandez   1800.000         N
+## -Kent Hrbek        1310.000         A
+## -Ken Landreaux      737.500         N
+## -Kevin McReynolds   625.000         N
+## -Kevin Mitchell     125.000         N
+## -Keith Moreland    1043.333         N
+## -Ken Oberkfell      725.000         N
+## -Ken Phelps         300.000         A
+## -Kirby Puckett      365.000         A
+## -Kurt Stillwell      75.000         N
+## -Leon Durham       1183.333         N
+## -Len Dykstra        202.500         N
+## -Larry Herndon      225.000         A
+## -Lee Lacy           525.000         A
+## -Len Matuszek       265.000         N
+## -Lloyd Moseby       787.500         A
+## -Lance Parrish      800.000         N
+## -Larry Parrish      587.500         A
+## -Larry Sheets       145.000         A
+## -Lou Whitaker       420.000         A
+## -Mike Aldrete        75.000         N
+## -Marty Barrett      575.000         A
+## -Mike Davis         780.000         A
+## -Mike Diaz           90.000         N
+## -Mariano Duncan     150.000         N
+## -Mike Easler        700.000         N
+## -Mel Hall           550.000         A
+## -Mike Heath         650.000         A
+## -Mike Kingery        68.000         A
+## -Mike LaValliere    100.000         N
+## -Mike Marshall      670.000         N
+## -Mike Pagliarulo    175.000         A
+## -Mark Salas         137.000         A
+## -Mike Schmidt      2127.333         N
+## -Mike Scioscia      875.000         N
+## -Mickey Tettleton   120.000         A
+## -Milt Thompson      140.000         N
+## -Mitch Webster      210.000         N
+## -Mookie Wilson      800.000         N
+## -Marvell Wynne      240.000         N
+## -Mike Young         350.000         A
+## -Ozzie Guillen      175.000         A
+## -Oddibe McDowell    200.000         A
+## -Ozzie Smith       1940.000         N
+## -Ozzie Virgil       700.000         N
+## -Phil Bradley       750.000         A
+## -Phil Garner        450.000         N
+## -Pete Incaviglia    172.000         A
+## -Paul Molitor      1260.000         A
+## -Pete Rose          750.000         N
+## -Pat Sheridan       190.000         A
+## -Pat Tabler         580.000         A
+## -Rafael Belliard    130.000         N
+## -Rick Burleson      450.000         A
+## -Randy Bush         300.000         A
+## -Rick Cerone        250.000         A
+## -Ron Cey           1050.000         A
+## -Rob Deer           215.000         A
+## -Rick Dempsey       400.000         A
+## -Ron Hassey         560.000         A
+## -Rickey Henderson  1670.000         A
+## -Reggie Jackson     487.500         A
+## -Ron Kittle         425.000         A
+## -Ray Knight         500.000         A
+## -Rick Leach         250.000         A
+## -Rick Manning       400.000         A
+## -Rance Mulliniks    450.000         A
+## -Ron Oester         750.000         N
+## -Rey Quinones        70.000         A
+## -Rafael Ramirez     875.000         N
+## -Ronn Reynolds      190.000         N
+## -Ron Roenicke       191.000         N
+## -Ryne Sandberg      740.000         N
+## -Rafael Santana     250.000         N
+## -Rick Schu          140.000         N
+## -Ruben Sierra        97.500         A
+## -Roy Smalley        740.000         A
+## -Robby Thompson     140.000         N
+## -Rob Wilfong        341.667         A
+## -Robin Yount       1000.000         A
+## -Steve Balboni      100.000         A
+## -Scott Bradley       90.000         A
+## -Sid Bream          200.000         N
+## -Steve Buechele     135.000         A
+## -Shawon Dunston     155.000         N
+## -Scott Fletcher     475.000         A
+## -Steve Garvey      1450.000         N
+## -Steve Jeltz        150.000         N
+## -Steve Lombardozzi  105.000         A
+## -Spike Owen         350.000         A
+## -Steve Sax           90.000         N
+## -Tony Bernazard     530.000         A
+## -Tom Brookens       341.667         A
+## -Tom Brunansky      940.000         A
+## -Tony Fernandez     350.000         A
+## -Tim Flannery       326.667         N
+## -Tom Foley          250.000         N
+## -Tony Gwynn         740.000         N
+## -Terry Harper       425.000         A
+## -Tommy Herr         925.000         N
+## -Tim Hulett         185.000         A
+## -Terry Kennedy      920.000         A
+## -Tito Landrum       286.667         N
+## -Tim Laudner        245.000         A
+## -Tom Paciorek       235.000         A
+## -Tony Pena         1150.000         N
+## -Terry Pendleton    160.000         N
+## -Tony Phillips      425.000         A
+## -Terry Puhl         900.000         N
+## -Ted Simmons        500.000         N
+## -Tim Teufel         277.500         N
+## -Tim Wallach        750.000         N
+## -Vince Coleman      160.000         N
+## -Von Hayes         1300.000         N
+## -Vance Law          525.000         N
+## -Wally Backman      550.000         N
+## -Wade Boggs        1600.000         A
+## -Will Clark         120.000         N
+## -Wally Joyner       165.000         A
+## -Willie McGee       700.000         N
+## -Willie Randolph    875.000         A
+## -Wayne Tolleson     385.000         A
+## -Willie Upshaw      960.000         A
+## -Willie Wilson     1000.000         A</code></pre>
+<pre class="r"><code>hitters_dat = Hitters %&gt;%
+  dplyr::select(AtBat:NewLeague)
+
+
+# hitters_dat[,&quot;Salary&quot;]
+X = hitters_dat %&gt;%
+  dplyr::select(-Salary)
+y = hitters_dat %&gt;%
+  dplyr::select(Salary)</code></pre>
+<p>먼저 가변수열을 만들어보자.</p>
+<pre class="r"><code>X_dummy = dummy_var_gen(X)</code></pre>
+<pre><code>## 초기값 설정 완료
+## 더미변수열 League 생성 완료
+## 더미변수열 Division 생성 완료
+## 더미변수열 NewLeague 생성 완료</code></pre>
+<pre class="r"><code>X_test = scale(X_dummy, center =TRUE, scale = TRUE)</code></pre>
+<div id="능형회귀-1" class="section level4">
+<h4>능형회귀</h4>
+<p>생성된 가변수열로 구성된 데이터로 능형회귀를 적합해보면 다음과
+같다.</p>
+<pre class="r"><code>lambda = seq(0.01, 100, 0.01)
+ridge_res = ridge_reg(X = X_dummy, y = y, lambda = lambda)</code></pre>
+<p>능형추정값 <span class="math inline">\(\hat{\beta}_j (k)\)</span>에
+대하여 능형 트레이스를 그려 보면 다음과 같다.</p>
+<pre class="r"><code>ridge_coef = ridge_res
+matplot(lambda, t(ridge_coef), type = &quot;l&quot;,
+        xlab = expression(k), ylab = expression(bold(beta)(k)))</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
+<pre class="r"><code># 1) 기존 파라미터 백업
+op &lt;- par(no.readonly = TRUE)
+
+# 2) 마진 조정 (아래, 왼쪽, 위, 오른쪽)
+#    기본값은 c(5, 4, 4, 2) + 0.1 인데, 
+#    오른쪽을 넉넉히 8로 늘려줌
+par(mar = c(5, 4, 4, 8) + 0.1)
+
+# 3) matplot 그리기
+matplot(lambda,
+        t(ridge_coef),
+        type = &quot;l&quot;,
+        lty  = 1,
+        col  = 1:ncol(ridge_coef),
+        xlab = expression(k),
+        ylab = expression(bold(beta)(k)),
+        main = &quot;야구선수 데이터의 능형트레이스&quot;)
+
+# 4) xpd=NA 로 클리핑 해제하고, legend 외부로 배치
+par(xpd = NA)
+legend(&quot;topright&quot;,
+       inset  = c(-0.25, 0),            # 오른쪽 바깥쪽으로 20% 뺌
+       legend = rownames(ridge_coef),
+       col    = 1:ncol(ridge_coef),
+       lty    = 1,
+       cex    = 0.6,
+       bg     = &quot;white&quot;)</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
+<pre class="r"><code># 5) 파라미터 원복
+par(op)</code></pre>
+<p>플롯에서 알 수 있듯이, 야구선수데이터의 설명변수가 모두 19개이므로
+19개의 곡선이 그려진다. 능형추정량에서 <span class="math inline">\(k =
+0\)</span> 인 경우 능형회귀추정량이 최소제곱추정량과 같음을 다음과 같이
+확인할 수 있다.</p>
+<pre class="r"><code>## 표준화
+X_dummy_scaled &lt;- data.frame(scale(X_dummy))
+y_scaled &lt;- data.frame(scale(y))
+X_mat = as.matrix(X_dummy_scaled) ; y_mat = as.matrix(y_scaled)
+
+print(glue(&quot;\n&quot;))</code></pre>
+<pre class="r"><code>## 최소제곱추정법
+lse_res = mult_reg(X_mat, y_mat, alpha = 0.05, coeff = TRUE)</code></pre>
+<pre><code>##   요인   제곱합 자유도 평균제곱합      F값  F기각치
+## 1 회귀 143.0824     19   7.530650 15.38836 1.629517
+## 2 잔차 118.9176    243   0.489373       NA       NA
+## 3   계 262.0000    262         NA       NA       NA
+## SST = 262, SSR = 143.082355821084, SSE = 118.917644178916
+## MSR = 7.53065030637285, MSE = 0.489373021312411
+## F_0 = 15.3883642506017, F_alpha = 1.6295172528812</code></pre>
+<pre class="r"><code>print(t(round(lse_res$beta_hat, 2)))</code></pre>
+<pre><code>##        one AtBat Hits HmRun  Runs   RBI Walks Years CAtBat CHits CHmRun CRuns
+## Salary   0 -0.65 0.75  0.08 -0.13 -0.06   0.3 -0.04  -0.87  0.19  -0.03  1.07
+##        CRBI CWalks PutOuts Assists Errors LeagueN DivisionW NewLeagueN
+## Salary 0.58  -0.48    0.17    0.12  -0.05    0.07     -0.13      -0.03</code></pre>
+<pre class="r"><code>## k = 0 능형회귀
+ridge_k0_res = ridge_reg(X_mat, y_mat, lambda = c(0))
+print(t(round(ridge_k0_res, 2)))</code></pre>
+<pre><code>##   AtBat Hits HmRun  Runs   RBI Walks Years CAtBat CHits CHmRun CRuns CRBI
+## 0 -0.65 0.75  0.08 -0.13 -0.06   0.3 -0.04  -0.87  0.19  -0.03  1.07 0.58
+##   CWalks PutOuts Assists Errors LeagueN DivisionW NewLeagueN
+## 0  -0.48    0.17    0.12  -0.05    0.07     -0.13      -0.03</code></pre>
+<p>또한 <span class="math inline">\(k\)</span> 가 큰 경우 회귀계수가
+작아지는 경향을 다음과 같이 확인해볼 수 있다.</p>
+<pre class="r"><code>round(ridge_coef[,lambda == &quot;14.91&quot;], 2)</code></pre>
+<pre><code>##      AtBat       Hits      HmRun       Runs        RBI      Walks      Years 
+##      -0.22       0.28      -0.03       0.06       0.04       0.16      -0.10 
+##     CAtBat      CHits     CHmRun      CRuns       CRBI     CWalks    PutOuts 
+##      -0.01       0.19       0.12       0.22       0.19      -0.16       0.16 
+##    Assists     Errors    LeagueN  DivisionW NewLeagueN 
+##       0.05      -0.05       0.06      -0.14      -0.02</code></pre>
+<p>기존 라이브러리를 활용한 코드는 다음과 같다.</p>
+<pre class="r"><code>X_dummy_scaled &lt;- data.frame(scale(X_dummy))
+y_scaled &lt;- data.frame(scale(y))
+
+hitters_scaled &lt;- cbind(X_dummy_scaled, y_scaled)
+rfit_scaled &lt;- lm.ridge(Salary ~ ., data = hitters_scaled, lambda = seq(0.01, 100, 0.01))
+matplot(rfit_scaled$lambda, t(rfit_scaled$coef), type = &quot;l&quot;,
+        xlab = expression(k), ylab = expression(bold(beta)(k)))</code></pre>
+<p><img role="img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAABUAAAAPACAMAAADDuCPrAAAA8FBMVEUAAAAAADoAAGYAOjoAOmYAOpAAZmYAZrYil+Yo4uU6AAA6AGY6OgA6Ojo6OmY6OpA6ZmY6ZpA6ZrY6kNth0E9mAABmADpmAGZmOgBmOjpmZjpmZmZmZpBmZrZmkJBmkLZmkNtmtttmtv+QOgCQOjqQZgCQZjqQZmaQZpCQkDqQkGaQkLaQtraQttuQtv+Q2/+2ZgC2Zjq2kDq2kGa2kJC2kLa2tpC2tra2ttu229u22/+2///NC7zbkDrbkGbbtmbbtpDbtrbbttvb27bb29vb2//b/9vb///fU2v/tmb/25D/27b/29v//7b//9v////bz3tAAAAACXBIWXMAAB2HAAAdhwGP5fFlAAAgAElEQVR4nO3dC5sbVX7gYTWYxe0dJgHMLqSzIeAN2c3OrE2cTGPGDkzsWdo2tL7/t1ndVZLq+q9TUh3pfZ9nRlZZqq7TLf84dZF6MgUgZHLqDQDIlYACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIACBAkoQJCAAgQJKECQgAIECShAkIAC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" width="672" /></p>
+</div>
+<div id="주성분회귀-1" class="section level4">
+<h4>주성분회귀</h4>
+<p>주성분회귀도 능형회귀와 마찬가지로 설명변수에 대한 표준화가
+필요하므로 이전에 사용한 <code>X_mat</code>, <code>y_mat</code>을 그대로
+사용하기로 한다.</p>
+<pre class="r"><code>pc_res = pc_reg(X_mat, y_mat, alpha = 0.05)</code></pre>
+<pre><code>##   요인   제곱합 자유도 평균제곱합      F값  F기각치
+## 1 회귀 143.0824     19   7.530650 15.38836 1.629517
+## 2 잔차 118.9176    243   0.489373       NA       NA
+## 3   계 262.0000    262         NA       NA       NA
+## SST = 262, SSR = 143.082355821083, SSE = 118.917644178917
+## MSR = 7.5306503063728, MSE = 0.489373021312414
+## F_0 = 15.3883642506015, F_alpha = 1.6295172528812</code></pre>
+<p><img role="img" src="data:image/png;base64,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" width="672" /></p>
+<pre class="r"><code>R2 = pc_res$SSR / pc_res$SST ; R2</code></pre>
+<pre><code>## [1] 0.5461159</code></pre>
+<p>야구선수 데이터의 경우 산비탈 그림(scree plot)만으로 주성분의 개수
+<span class="math inline">\(g\)</span>를 결정하기는 어려워 보인다. <span class="math inline">\(g= 3, 4, 5\)</span> 모두 앞서 관측된 값에 비해
+고윳값이 계속해서 작아지는데, <span class="math inline">\(k= 8,
+9\)</span>에서도 유의미한 수준으로 고윳값이 작아지기 때문에 elbow
+point를 정하기 애매해 보인다. 굳이 고르자면 <span class="math inline">\(g = 5\)</span>일때가 적절해보이기는 하나 이것이
+올바른 결정이라고 확신하기에는 어렵다.</p>
+<p>다음은 <code>lm()</code> 함수를 활용해서 각 주성분의 유의성을
+확인하는 코드이다.</p>
+<pre class="r"><code>eigen_decomp = eigen(cor(X_mat))
+Z = X_mat %*% eigen_decomp$vectors
+pcr_res = lm(y_mat ~ Z)
+summary(pcr_res)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = y_mat ~ Z)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -2.0119 -0.3954 -0.0690  0.3083  4.1609 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)  1.379e-16  4.314e-02   0.000 1.000000    
+## Z1          -2.362e-01  1.602e-02 -14.748  &lt; 2e-16 ***
+## Z2           4.798e-02  2.122e-02   2.262 0.024610 *  
+## Z3          -5.396e-02  3.033e-02  -1.779 0.076499 .  
+## Z4          -8.214e-02  3.464e-02  -2.371 0.018506 *  
+## Z5          -1.297e-01  4.325e-02  -3.000 0.002983 ** 
+## Z6           1.382e-01  4.757e-02   2.904 0.004019 ** 
+## Z7           5.472e-02  5.205e-02   1.051 0.294194    
+## Z8           3.515e-02  6.034e-02   0.583 0.560704    
+## Z9           6.569e-02  8.631e-02   0.761 0.447354    
+## Z10         -2.213e-01  1.005e-01  -2.201 0.028645 *  
+## Z11         -6.688e-02  1.167e-01  -0.573 0.566995    
+## Z12         -4.662e-02  1.210e-01  -0.385 0.700446    
+## Z13          1.608e-01  1.398e-01   1.150 0.251145    
+## Z14          6.145e-01  1.749e-01   3.513 0.000529 ***
+## Z15         -1.647e-01  1.896e-01  -0.869 0.385723    
+## Z16         -9.388e-01  2.583e-01  -3.635 0.000339 ***
+## Z17         -7.708e-01  3.641e-01  -2.117 0.035259 *  
+## Z18         -1.247e+00  6.198e-01  -2.012 0.045280 *  
+## Z19          1.849e-01  1.254e+00   0.147 0.882924    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 0.6996 on 243 degrees of freedom
+## Multiple R-squared:  0.5461, Adjusted R-squared:  0.5106 
+## F-statistic: 15.39 on 19 and 243 DF,  p-value: &lt; 2.2e-16</code></pre>
+<p>앞서 산비탈그림에서 확인했듯이, 19개의 설명변수중 몇개의 새로운
+설명변수만이 유의함을 확인할 수 있다. 또한 세 번째 설명변수 <span class="math inline">\(Z_3\)</span>은 <span class="math inline">\(Z_{14},
+Z_{16}\)</span>보다 고윳값이 더 큰 경우에 해당되나, 반응변수 <span class="math inline">\(y\)</span>와의 유의성은 오히려 이들보다 더
+떨어짐을 알 수 있다. 이 결과를 통해 주성분 순서대로 반응변수와의
+유의성이 보장되지 않음을 알 수 있다. 그리고 결정계수 값이 0.5461로,
+주성분회귀모형은 반응변수를 제대로 설명하지 못한다는 점도 확인할 수
+있다.</p>
+</div>
+<div id="부분최소제곱회귀-1" class="section level4">
+<h4>부분최소제곱회귀</h4>
+<pre class="r"><code>source(&quot;functions/biased_reg.R&quot;, echo = F)
+X = hitters_dat %&gt;%
+  dplyr::select(-Salary)
+y = hitters_dat %&gt;%
+  dplyr::select(Salary)
+
+X_dummy = dummy_var_gen(X)</code></pre>
+<pre><code>## 초기값 설정 완료
+## 더미변수열 League 생성 완료
+## 더미변수열 Division 생성 완료
+## 더미변수열 NewLeague 생성 완료</code></pre>
+<pre class="r"><code>X_mat &lt;- as.matrix(X_dummy)
+y_mat &lt;- as.matrix(y)
+
+## 부분최소제곱회귀 - 방법 1 : 직교변환 불변 방법
+pls_res1 = pls_reg(X_mat, y_mat, alpha = 0.05, method = &quot;ortho_invar&quot;)</code></pre>
+<pre><code>## T1 에 대한 회귀모형의 결정계수 = 0.284457552013579 
+## T1, ..., T2 에 대한 회귀모형의 결정계수 = 0.405294996449111 
+## T1, ..., T3 에 대한 회귀모형의 결정계수 = 0.4571201763327 
+## T1, ..., T4 에 대한 회귀모형의 결정계수 = 0.471359731522982 
+## T1, ..., T5 에 대한 회귀모형의 결정계수 = 0.48464545014733 
+## T1, ..., T6 에 대한 회귀모형의 결정계수 = 0.488099997195023 
+## T1, ..., T7 에 대한 회귀모형의 결정계수 = 0.506722757888343 
+## T1, ..., T8 에 대한 회귀모형의 결정계수 = 0.520705069206441 
+## T1, ..., T9 에 대한 회귀모형의 결정계수 = 0.525548621770939 
+## T1, ..., T10 에 대한 회귀모형의 결정계수 = 0.525975338243878 
+## T1, ..., T11 에 대한 회귀모형의 결정계수 = 0.527740981255794 
+## T1, ..., T12 에 대한 회귀모형의 결정계수 = 0.527999368594613 
+## T1, ..., T13 에 대한 회귀모형의 결정계수 = 0.529585253404748 
+## T1, ..., T14 에 대한 회귀모형의 결정계수 = 0.530025384442472 
+## T1, ..., T15 에 대한 회귀모형의 결정계수 = 0.533024667198951 
+## T1, ..., T16 에 대한 회귀모형의 결정계수 = 0.543088903509184 
+## T1, ..., T17 에 대한 회귀모형의 결정계수 = 0.545027706493099 
+## T1, ..., T18 에 대한 회귀모형의 결정계수 = 0.545747447176402 
+## T1, ..., T19 에 대한 회귀모형의 결정계수 = 0.546115861912533</code></pre>
+<pre class="r"><code>cor(pls_res1$T_mat)</code></pre>
+<pre><code>##                T1            T2            T3            T4            T5
+## T1   1.000000e+00 -1.760499e-17  1.168127e-15  2.582362e-15  4.452417e-15
+## T2  -1.760499e-17  1.000000e+00  1.295864e-16  5.032537e-17  1.098391e-17
+## T3   1.168127e-15  1.295864e-16  1.000000e+00 -2.670553e-16 -4.288628e-16
+## T4   2.582362e-15  5.032537e-17 -2.670553e-16  1.000000e+00 -3.210462e-16
+## T5   4.452417e-15  1.098391e-17 -4.288628e-16 -3.210462e-16  1.000000e+00
+## T6  -1.969636e-15  1.610330e-16 -5.011315e-16  1.339480e-16  2.353688e-16
+## T7  -3.674672e-15  7.466190e-16 -8.579771e-16  4.638977e-16  5.108999e-16
+## T8  -4.968969e-15  8.268357e-16 -6.884948e-16 -2.536046e-16  2.322192e-16
+## T9  -4.380127e-15  1.335017e-15  5.487790e-17  7.085087e-16 -1.257535e-17
+## T10  9.668587e-15  6.939151e-16 -4.693072e-16  2.844430e-16  2.145512e-16
+## T11 -1.460869e-14  1.326803e-15 -1.263974e-15  2.376431e-16 -4.081016e-16
+## T12 -1.390303e-14  9.545242e-16  4.802001e-16 -6.636247e-16 -5.278032e-16
+## T13  3.367948e-15  1.183006e-15  3.720349e-16  1.715182e-16 -7.664698e-17
+## T14 -2.174255e-14  1.049809e-15  8.662157e-16 -6.821632e-16 -1.151629e-15
+## T15 -8.093376e-15  1.462317e-15  2.287941e-16  1.148337e-16 -9.529011e-17
+## T16  5.766014e-15 -1.066534e-15 -4.573393e-16  6.910576e-17  2.553144e-16
+## T17  3.343603e-15 -4.502827e-17  2.239239e-16 -1.329317e-16  1.623889e-16
+## T18  2.539234e-15  1.784851e-16 -1.747587e-16  9.775307e-17  1.127425e-16
+## T19  3.252190e-15 -3.217622e-16 -3.754167e-16  5.414143e-17  6.480932e-17
+##                T6            T7            T8            T9           T10
+## T1  -1.969636e-15 -3.674672e-15 -4.968969e-15 -4.380127e-15  9.668587e-15
+## T2   1.610330e-16  7.466190e-16  8.268357e-16  1.335017e-15  6.939151e-16
+## T3  -5.011315e-16 -8.579771e-16 -6.884948e-16  5.487790e-17 -4.693072e-16
+## T4   1.339480e-16  4.638977e-16 -2.536046e-16  7.085087e-16  2.844430e-16
+## T5   2.353688e-16  5.108999e-16  2.322192e-16 -1.257535e-17  2.145512e-16
+## T6   1.000000e+00 -1.429368e-15 -9.068984e-16 -5.316269e-16  8.081343e-19
+## T7  -1.429368e-15  1.000000e+00 -1.300339e-16  4.317966e-17 -2.306514e-16
+## T8  -9.068984e-16 -1.300339e-16  1.000000e+00 -4.607500e-16  6.243709e-17
+## T9  -5.316269e-16  4.317966e-17 -4.607500e-16  1.000000e+00 -1.305539e-16
+## T10  8.081343e-19 -2.306514e-16  6.243709e-17 -1.305539e-16  1.000000e+00
+## T11 -6.554624e-16  1.523464e-16  9.906132e-17 -6.901939e-16  6.933803e-16
+## T12 -3.557865e-16 -1.162902e-16  3.802100e-16 -1.493035e-16 -2.893754e-16
+## T13 -1.896468e-16 -6.384603e-17  1.525627e-16 -3.124572e-16  3.256835e-16
+## T14  6.865437e-16 -4.290611e-16  9.519679e-16 -1.203749e-16 -3.332840e-16
+## T15 -5.421049e-16 -3.520878e-16  2.576386e-16 -2.525256e-16  6.556697e-16
+## T16 -8.738279e-16 -5.142336e-16 -4.036624e-16  1.825727e-16  1.348970e-15
+## T17 -3.591133e-16 -3.340992e-16 -3.999735e-17  3.915141e-18  4.716465e-16
+## T18 -3.322835e-16 -1.748361e-16 -8.994247e-17 -4.958571e-17  3.753812e-16
+## T19 -2.481529e-16 -1.107732e-16 -1.819478e-16 -8.375431e-17  4.793715e-16
+##               T11           T12           T13           T14           T15
+## T1  -1.460869e-14 -1.390303e-14  3.367948e-15 -2.174255e-14 -8.093376e-15
+## T2   1.326803e-15  9.545242e-16  1.183006e-15  1.049809e-15  1.462317e-15
+## T3  -1.263974e-15  4.802001e-16  3.720349e-16  8.662157e-16  2.287941e-16
+## T4   2.376431e-16 -6.636247e-16  1.715182e-16 -6.821632e-16  1.148337e-16
+## T5  -4.081016e-16 -5.278032e-16 -7.664698e-17 -1.151629e-15 -9.529011e-17
+## T6  -6.554624e-16 -3.557865e-16 -1.896468e-16  6.865437e-16 -5.421049e-16
+## T7   1.523464e-16 -1.162902e-16 -6.384603e-17 -4.290611e-16 -3.520878e-16
+## T8   9.906132e-17  3.802100e-16  1.525627e-16  9.519679e-16  2.576386e-16
+## T9  -6.901939e-16 -1.493035e-16 -3.124572e-16 -1.203749e-16 -2.525256e-16
+## T10  6.933803e-16 -2.893754e-16  3.256835e-16 -3.332840e-16  6.556697e-16
+## T11  1.000000e+00  1.057546e-16  2.028514e-16  1.614076e-17  1.233227e-16
+## T12  1.057546e-16  1.000000e+00 -5.261616e-17  1.720486e-17  1.299102e-16
+## T13  2.028514e-16 -5.261616e-17  1.000000e+00 -5.373914e-17 -5.863107e-16
+## T14  1.614076e-17  1.720486e-17 -5.373914e-17  1.000000e+00 -6.384055e-16
+## T15  1.233227e-16  1.299102e-16 -5.863107e-16 -6.384055e-16  1.000000e+00
+## T16 -5.307678e-16  3.313474e-16 -7.044668e-16 -8.732969e-16  9.098732e-16
+## T17 -7.397060e-17  7.950771e-17 -5.096379e-16 -4.298322e-16  4.990141e-16
+## T18 -1.186271e-17  1.218323e-16 -1.454477e-16 -2.909312e-16  3.888901e-16
+## T19 -1.204995e-16  7.799678e-17  9.182401e-17 -2.802614e-16 -3.040161e-16
+##               T16           T17           T18           T19
+## T1   5.766014e-15  3.343603e-15  2.539234e-15  3.252190e-15
+## T2  -1.066534e-15 -4.502827e-17  1.784851e-16 -3.217622e-16
+## T3  -4.573393e-16  2.239239e-16 -1.747587e-16 -3.754167e-16
+## T4   6.910576e-17 -1.329317e-16  9.775307e-17  5.414143e-17
+## T5   2.553144e-16  1.623889e-16  1.127425e-16  6.480932e-17
+## T6  -8.738279e-16 -3.591133e-16 -3.322835e-16 -2.481529e-16
+## T7  -5.142336e-16 -3.340992e-16 -1.748361e-16 -1.107732e-16
+## T8  -4.036624e-16 -3.999735e-17 -8.994247e-17 -1.819478e-16
+## T9   1.825727e-16  3.915141e-18 -4.958571e-17 -8.375431e-17
+## T10  1.348970e-15  4.716465e-16  3.753812e-16  4.793715e-16
+## T11 -5.307678e-16 -7.397060e-17 -1.186271e-17 -1.204995e-16
+## T12  3.313474e-16  7.950771e-17  1.218323e-16  7.799678e-17
+## T13 -7.044668e-16 -5.096379e-16 -1.454477e-16  9.182401e-17
+## T14 -8.732969e-16 -4.298322e-16 -2.909312e-16 -2.802614e-16
+## T15  9.098732e-16  4.990141e-16  3.888901e-16 -3.040161e-16
+## T16  1.000000e+00 -2.446488e-16  3.920507e-17 -2.293786e-16
+## T17 -2.446488e-16  1.000000e+00  1.851170e-16  8.178098e-17
+## T18  3.920507e-17  1.851170e-16  1.000000e+00  1.084662e-15
+## T19 -2.293786e-16  8.178098e-17  1.084662e-15  1.000000e+00</code></pre>
+<p>보다시피 가중치를 <span class="math inline">\(X\)</span>의 직교변환에
+대하여 반응변수 <span class="math inline">\(y\)</span>의 예측이
+불변하게끔 설정한 경우 <span class="math inline">\(l=3\)</span>까지는
+결정계수값이 크게 증가하다가 이후부터는 증가폭이 줄어드는 것을 확인할 수
+있다. 또한 생성된 <span class="math inline">\(T = [\mathbf{t}_1, \ldots,
+\mathbf{t}_{19}]\)</span> 는 거의 단위행렬에 가까운 직교행렬로, <span class="math inline">\(X\)</span>에 대한 연관성을 고려함과 동시에
+반응변수 <span class="math inline">\(y\)</span>와의 연관성까지 고려하는
+행렬이다.</p>
+<pre class="r"><code>## 부분최소제곱회귀 - 방법 2 : 척도변환 불변 방법
+# pls_res2 = pls_reg(X_mat, y_mat, alpha = 0.05, method = &quot;scale_invar&quot;)</code></pre>
+<p>가중치를 <span class="math inline">\(X\)</span>의 척도변환에 대하여
+반응변수 <span class="math inline">\(y\)</span>의 예측이 불변하게끔
+설정한 경우에는 <span class="math inline">\(l = 3\)</span>에서 PLS
+알고리즘 계산이 singular value 문제로 인해 멈추는데, 이는 곧 야구선수
+데이터에 대해서 첫 3개의 PLS 잠재변수들만이 핵심적인 정보를 담고 있다고
+해석할 수 있다. 예를 들어 계산되는 <span class="math inline">\(T_4\)</span>의 경우에는 앞에서 계산된 <span class="math inline">\(T_1, T_2, T_3\)</span>와 거의 선형종속에 가까울
+정도로 연관성이 높기 때문에 <span class="math inline">\(T_4\)</span>
+계산은 의미가 없게 되는 것이다.</p>
+</div>
 </div>
 </div>
 

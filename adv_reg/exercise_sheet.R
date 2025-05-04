@@ -145,3 +145,15 @@ solve(XtX)
 1/6
 7/30
 
+
+p = 3
+n = 4 ; x1 = rnorm(4, 0, 1) ; x2 = rnorm(4, 1, 1) ; x3 = rnorm(4, 2, 1) ; x0 = rnorm(4, -1, 1)
+X_test = cbind(x1, x2, x3)
+X = cbind()
+for (j in 1:p){
+  x_temp = X_test[,j]
+  X = cbind(X, x_temp)
+  colnames(X)[ncol(X)] <- paste0("x", j)
+}
+
+X

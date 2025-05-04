@@ -17,7 +17,8 @@ total_subsets <- function(set) {
 # 전역 선택함수
 best_subset = function(X, y){
   library(glue)
-  X = as.matrix(X)
+  library(parallel)
+  X = as.matrix(X) ; y = as.matrix(y)
   
   n = dim(X)[1] ; p = dim(X)[2]
   one = c(rep(1, n)) ; In = diag(1,n) ; Jn = one %*% t(one)
@@ -144,7 +145,7 @@ best_subset = function(X, y){
 
 back_eli = function(X, y, alpha_drop = 0.15, method = c("MSE", "R2", "adj_R2", "Mallow")){
   library(glue)
-  X = as.matrix(X)
+  X = as.matrix(X) ; y = as.matrix(y)
   
   n = dim(X)[1] ; p = dim(X)[2]
   one = c(rep(1, n)) ; In = diag(1,n) ; Jn = one %*% t(one) ; 
@@ -236,7 +237,7 @@ back_eli = function(X, y, alpha_drop = 0.15, method = c("MSE", "R2", "adj_R2", "
 
 forward_sel = function(X, y, alpha_add = 0.15, method = c("MSE", "R2", "adj_R2", "Mallow")){
   library(glue)
-  X = as.matrix(X)
+  X = as.matrix(X) ; y = as.matrix(y)
   
   n = dim(X)[1] ; p = dim(X)[2]
   one = c(rep(1, n)) ; In = diag(1,n) ; Jn = one %*% t(one) ; 
@@ -361,7 +362,7 @@ forward_sel = function(X, y, alpha_add = 0.15, method = c("MSE", "R2", "adj_R2",
 
 stepwise_sel = function(X, y, alpha_add = 0.15, alpha_drop = 0.15, method = c("MSE", "R2", "adj_R2", "Mallow")){
   library(glue)
-  X = as.matrix(X)
+  X = as.matrix(X) ; y = as.matrix(y)
   
   n = dim(X)[1] ; p = dim(X)[2]
   one = c(rep(1, n)) ; In = diag(1,n) ; Jn = one %*% t(one) ; 
@@ -632,7 +633,134 @@ stepwise_eli = function(X, y, alpha_add = 0.15, alpha_drop = 0.15, method = c("M
 
 
 
+#######################################################################################
 
+# 전역 선택함수
+best_subset_multi = function(X, y, method = "null"){
+  library(glue)
+  library(parallel)
+  ncores <- detectCores() - 1
+  cl <- makeCluster(ncores)
+  
+  X = as.matrix(X) ; y = as.matrix(y)
+  
+  n = dim(X)[1] ; p = dim(X)[2]
+  one = c(rep(1, n)) ; In = diag(1,n) ; Jn = one %*% t(one)
+  SST = t(y) %*% (In - (1/n)*Jn) %*% y
+  SSE = t(y) %*% (In - X %*% solve(t(X) %*% X) %*% t(X)) %*% y
+  MSE = SSE / (n - p - 1)
+  
+  colname_vec = colnames(X)
+  
+  colname_vec_res = c(total_subsets(colname_vec))
+  
+  # 각 부분집합의 원소들을 오름차순 정렬
+  colname_vec_res = lapply(colname_vec_res, sort, decreasing = FALSE)
+  
+  # 각 부분집합의 길이(원소 개수)에 따라 전체 리스트 정렬 (0개, 1개, 2개, …)
+  colname_vec_res_sorted = colname_vec_res[order(sapply(colname_vec_res, length))]
+  
+  colvec = colname_vec_res_sorted
+  
+  # 총 부분집합수
+  K = length(colvec)
+  
+  # 중간계산 벡터
+  SSE_vec = c(rep(0, K)) ; R2_a_vec = c(rep(0, K)) ; R2_vec = c(rep(0, K)) ; MSE_vec = c(rep(0, K)) ; C_k_vec = c(rep(0, K))
+  
+  # 결과물 벡터
+  MSE_k_res = c(rep(0, p)) ; R2_k_res = c(rep(0, p))
+  adj_R2_k_res = c(rep(0, p)) ; C_k_res = c(rep(0, p))
+  
+  
+  
+  min_MSE = Inf ; min_MSE_index = NA
+  max_R2 = -1 ; max_R2_index = NA
+  max_R2_a = -1 ; max_R2_a_index = NA
+  min_C_k = Inf ; min_C_k_index = NA
+  k = 1
+  
+  for (t in 1:K){
+    subset_k = colvec[[t]]
+    
+    var_nums = length(subset_k)
+    
+    if (k < var_nums | k == p){
+      MSE_k_res[k] = min_MSE
+      R2_k_res[k] = max_R2
+      adj_R2_k_res[k] = max_R2_a
+      C_k_res[k] = min_C_k
+      print(glue("k = {k} 일때 MSE기준 변수선택 : {paste(colvec[[min_MSE_index]], collapse = ', ')}, MSE = {MSE_k_res[k]}"))
+      print(glue("k = {k} 일때 R2기준 변수선택 : {paste(colvec[[max_R2_index]],  collapse = ', ')}, R2 = {R2_k_res[k]}"))
+      print(glue("k = {k} 일때 adj_R2기준 변수선택 : {paste(colvec[[max_R2_a_index]],  collapse = ', ')}, adj_R2 = {adj_R2_k_res[k]}"))
+      print(glue("k = {k} 일때 C_k기준 변수선택 : {paste(colvec[[min_C_k_index]],  collapse = ', ')}, C_k = {C_k_res[k]}"))
+      
+      print(glue("\n"))
+      k = k + 1
+      print(glue("현재 k = {k}"))
+    }
+    
+    X_k = X[, subset_k]
+    X_k = cbind(one, X_k)
+    X_ktX_k_inv = solve(t(X_k) %*% X_k)
+    
+    SSE_k = t(y) %*% (In - X_k %*% X_ktX_k_inv %*% t(X_k)) %*% y
+    MSE_k = SSE_k / (n-k-1)
+    R2_k = 1 - (SSE_k / SST)
+    R2_ak = 1 - ((n-1)/(n-k-1)) * (1 - R2_k)
+    C_k = (SSE_k / MSE) + 2*(k+1) - n
+    
+    SSE_vec[t] = SSE_k
+    MSE_vec[t] = MSE_k
+    R2_vec[t] = R2_k
+    R2_a_vec[t] = R2_ak
+    C_k_vec[t] = C_k
+    
+    if(MSE_vec[t] < min_MSE){
+      min_MSE <- MSE_vec[t]
+      min_MSE_index <- t
+      # print(glue("최소의 MSE_{k} = {min_MSE} 를 가지는 {t}번째 부분집합 : {paste(subset_k, collapse = ', ')}"))
+    }
+    
+    if(R2_vec[t] > max_R2){
+      max_R2 <- R2_vec[t]
+      max_R2_index <- t
+      # print(glue("최대의 R2_{k} = {R2_k} 를 가지는 {t}번째 부분집합 : {paste(subset_k, collapse = ', ')}"))      
+    }
+    
+    if(R2_a_vec[t] > max_R2_a){
+      max_R2_a <- R2_a_vec[t]
+      max_R2_a_index <- t
+      # print(glue("최대의 R2_a{k} = {R2_ak} 를 가지는 {t}번째 부분집합 : {paste(subset_k, collapse = ', ')}"))
+    }
+    
+    if(C_k_vec[t] < min_C_k){
+      min_C_k =  C_k_vec[t]
+      min_C_k_index = t
+      
+    }
+    
+    
+    # print(glue("{t}번째 부분집합 : {paste(subset_k, collapse = ', ')}, SSE_{k} = {SSE_k}, R2_a{k} = {R2_ak} "))
+    
+  }
+  MSE_k_res[k] = min_MSE
+  R2_k_res[k] = max_R2
+  adj_R2_k_res[k] = max_R2_a
+  C_k_res[k] = min_C_k
+  print(glue("k = {k} 일때 MSE기준 변수선택 : {paste(colvec[[min_MSE_index]], collapse = ', ')}, MSE = {MSE_k_res[k]}"))
+  print(glue("k = {k} 일때 R2기준 변수선택 : {paste(colvec[[max_R2_index]],  collapse = ', ')}, R2 = {R2_k_res[k]}"))
+  print(glue("k = {k} 일때 adj_R2기준 변수선택 : {paste(colvec[[max_R2_a_index]],  collapse = ', ')}, adj_R2 = {adj_R2_k_res[k]}"))
+  print(glue("k = {k} 일때 C_k기준 변수선택 : {paste(colvec[[min_C_k_index]],  collapse = ', ')}, C_k = {C_k_res[k]}"))
+  
+  k = c(seq(from = 1, to = p, by = 1))
+  table_out = data.frame(k, MSE_k_res, R2_k_res, adj_R2_k_res, C_k_res)
+  colnames(table_out) = c("k", "MSE", "R2", "adj_R2", "C_k")
+  
+  plot(C_k_vec, type="b", xlab="Subset index", ylab="C_k")
+  
+  return(table_out)
+}
 
 
 

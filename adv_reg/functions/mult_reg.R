@@ -327,3 +327,45 @@ ortho_poly = function(X, k, coef = TRUE){
     return(X_p)
   }
 }
+
+
+
+#######################################################################################
+
+# 가변수 생성함수
+dummy_var_gen = function(X){
+  library(glue)
+  n = dim(X)[1] ; p = dim(X)[2] ; colnamevec = colnames(X)
+  uniq_name_vec = c()
+  print(glue("초기값 설정 완료"))
+  
+  for (j in 1:p){
+    col_name = colnamevec[j]
+    # print(glue("{col_name} 연산 시작"))
+    uniq_ = unique(X[,col_name])
+    uniq_vec = as.vector(uniq_)
+    # print(uniq_vec)
+    if (class(uniq_) == "factor"){
+      uniq_name_vec = c(uniq_name_vec, col_name)
+      num_cat = length(uniq_vec)
+      # print(glue("{col_name}의 종류 갯수 = {num_cat}"))
+      for (k in 1:(num_cat - 1)){
+        new_vec_name = paste(col_name, uniq_vec[k], sep="")
+        # print(glue(new_vec_name))
+        X[,new_vec_name] = ifelse(X[,col_name] == uniq_vec[k], 1, 0)
+        # print(X$new_vec_name)
+      }
+    }
+  }
+  
+  for (item in uniq_name_vec){
+    X = X %>%
+      dplyr::select(-all_of(item))
+    # print(item)
+  }
+  X_dummy = X
+  # X_dummy_vec = 
+  print(glue("더미변수열 {paste(uniq_name_vec, collapse=", ")} 생성 완료"))
+  # return(list(X = X_dummy, dummy_vec = X_dummy_vec))
+  return(X_dummy)
+}
