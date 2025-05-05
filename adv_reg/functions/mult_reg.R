@@ -369,3 +369,79 @@ dummy_var_gen = function(X){
   # return(list(X = X_dummy, dummy_vec = X_dummy_vec))
   return(X_dummy)
 }
+
+
+
+#######################################################################################
+
+# IRWLS 로지스틱 회귀함수
+irwls_logistic_reg = function(X, y, tol = 1e-8, alpha = 0.05){
+  library(glue)
+  n = dim(X)[1] ; one = c(rep(1, n))
+  X = cbind(one, X) ; p = dim(X)[2]
+  tol = tol
+  end_operator = FALSE
+  
+  ## 초기화
+  pi_beta = c(rep(0, n))
+  beta_old = c(rep(0, p))
+  W_beta_vec = c(rep(0, n))
+  iteration = 0
+  
+  while (end_operator == FALSE){
+    for (i in 1:n){
+      pi_beta[i] = exp(t(X[i,]) %*% beta_old ) / (1 + exp(t(X[i,])%*% beta_old ))
+      W_beta_vec[i] = pi_beta[i] * (1 - pi_beta[i])
+    }
+    W_beta = diag(W_beta_vec)
+    
+    beta_new = beta_old + solve(t(X) %*% W_beta %*% X) %*% t(X) %*% (y - pi_beta)
+    iteration = iteration + 1
+    if (max(abs(beta_new - beta_old)) < tol){
+      print(glue("converged at {iteration} iterations"))
+      print(glue("supreme norm distance = {max(abs(beta_new - beta_old))}"))
+      print(beta_new)
+      end_operator = TRUE
+    }else if (max(abs(beta_new - beta_old)) >= tol){
+      # if (iteration %% 1000 == 0){
+      #   print(glue("computing at {iteration} iterations"))
+      #   print(glue("supreme norm distance = {max(abs(beta_new - beta_old))}"))
+      # }
+      print(glue("computing at {iteration} iterations"))
+      print(glue("supreme norm distance = {max(abs(beta_new - beta_old))}"))
+      beta_old = beta_new
+    }
+  }
+  pi_beta = c(rep(0, n))
+  W_beta_vec = c(rep(0, n))
+  for (i in 1:n){
+    pi_beta[i] = exp(t(X[i,]) %*% beta_new) / (1 + exp(t(X[i,]) %*% beta_new))
+    W_beta_vec[i] = pi_beta[i] * (1 - pi_beta[i])
+  }
+  W_beta = diag(W_beta_vec)
+  
+  ### deprecated : 이 방식은 OLS 에서만 사용가능한 방법
+  # In = diag(1, n) ; Jn_n = one %*% t(one) / n
+  # SST = t(y) %*% (In - Jn_n) %*% y
+  # # SST = t(y) %*% y
+  # SSR = t(beta_new) %*% t(X) %*% y - t(y) %*% Jn_n %*% y
+  # # SSR = t(beta_new) %*% t(X) %*% y - t(y) %*% y  
+  # SSE = SST - SSR
+  # 
+  # df_SSR = p - 1 ; df_SSE = n - p
+  # 
+  # MSR = SSR / df_SSR ; MSE = SSE/ df_SSE
+  # 
+  # F_0 = MSR/MSE ; F_alpha = qf(alpha, df_SSR, df_SSE, lower.tail = FALSE)
+  # 
+  # anova_table <- data.frame(
+  #   요인 = c("회귀", "잔차", "계"),
+  #   제곱합 = c(SSR, SSE, SST),
+  #   자유도 = c(df_SSR, df_SSE, df_SSR + df_SSE),
+  #   평균제곱합 = c(MSR, MSE, NA),
+  #   F값 = c(F_0, NA, NA),
+  #   F기각치 = c(F_alpha, NA, NA)
+  # )
+  
+  return(list(beta_hat = beta_new, W = W_beta))
+}

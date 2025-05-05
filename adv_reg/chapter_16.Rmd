@@ -1,0 +1,355 @@
+---
+title: "고급회귀분석 16장"
+output: html_document
+date: "2025-05-04"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 16.5 R 실습
+
+```{r}
+source("functions/mult_reg.R", echo = F)
+source("functions/reg_diagnostics.R", echo = F)
+source("functions/var_selection.R", echo = F)
+source("functions/anova_reg.R", echo = F)
+```
+
+이 절에서는 ISLR 패키지에 있는 신용카드 채무 디폴트(default) 자료 (참고문헌 16.3)를 사용하여 로지스틱 회귀모형을 적합하기로 한다. 이 자료는 `student(학생 여부 )`, `income(연간 소득)`과 `balance(월별 신용카드 대금, 단위 : 달러)` 등을 설명변수로 하고, `default(연체 여부)`를 반응변수로 한다. 먼저 `income`과 `balance`에 따른 연체여부를 나타낸 그림을 그려본다.
+
+```{r}
+library(ISLR)
+plot(income ~ balance, col = ifelse(default == "No", "grey", "black"), cex = 0.1, data = Default)
+legend("topright",
+       legend = c("default = no", "default = yes"),
+       col    = c("grey", "black"),
+       lty    = 1,
+       cex    = 1.2,
+       bg     = "white")
+boxplot(balance ~ default, data = Default)
+boxplot(income ~ default, data = Default)
+```
+
+위 결과를 살펴보면 신용카드 채무가 큰 경우 연체하는 경우가 많음을 알 수 있다. 이에 로지스틱 회귀모형을 다음과 같이 설정해 보자.
+
+\begin{equation*}
+  \log \left[ \cfrac{P(\text{default = yes} | \text{balance})}{P(\text{default = no} | \text{balance})} \right] = \beta_0 + \beta_1 \times \text{balance}
+\end{equation*}
+위 모형에 대한 `R`적합은 다음과 같다.
+
+```{r}
+glm.fit <- glm(default ~ balance, data = Default, family = binomial)
+summary(glm.fit)
+```
+
+여기서 $\hat{\beta}_0 = -10.6513$ 이라는 것은 `balance`가 0달러일 때, 디폴트에 대한 로그 오즈가 -10.6513 혹은 오즈가 $e^{-10.6513} = 2.4 \times 10^{-5}$라는 뜻이다. $\hat{\beta}_1 = 0.0055$라는 것은 `balance`가 1달러 증가할 때 디폴트에 대한 로그 오즈가 0.0055씩 증가한다는 뜻이다. 이들 추정량에 대한 표준오차를 이용하여 $\beta_0$와 $\beta_1$에 대한 가설검정과 신뢰구간을 구할 수 있다. 이제 좀 더 구체적으로 `balance`에 따라 디폴트가 될 확률을 추정해 보자. 로지스틱 회귀모형으로부터 디폴트가 될 확률은 다음과 같다.
+
+\begin{equation*}
+  \hat{P}(\text{default = yes} | \text{balance}) = \cfrac{e^{\hat{\beta}_0 + \hat{\beta}_1 \times \text{balance}}}{1 + e^{\hat{\beta}_0 + \hat{\beta}_1 \times \text{balance}}}
+\end{equation*}
+
+위 식에서 `balance = 1000` 달러일때, 디폴트가 될 확률은 0.00576으로 1%도 되지 않는 것을 알 수 있다. 그러나 `balance = 2000` 달러일때에는 디폴트가 될 확률이 0.586으로 58.6%가 되는 것을 알 수 있다.
+
+```{r}
+glm_coef = glm.fit$coefficients
+curve(expr = exp(glm_coef[1] + glm_coef[2] * x) / (1 + exp(glm_coef[1] + glm_coef[2] * x)), from = 100, to = 10000, n = 101, xlab = "balance", ylab = "default Prob")
+
+```
+
+이번에는 `balance`와 같은 연속형 예측변수 대신 `student`와 같은 이진형 변수를 사용한 경우를 살펴보자.
+
+```{r}
+glm.fit <- glm(default ~ student, data = Default, family = binomial)
+summary(glm.fit)
+```
+
+위 결과로부터 학생이 아닌 경우에 비해 학생인 경우 디폴트 될 확률이 크다는 것을 알 수 있다.
+
+이제 다음의 다중 로지스틱 회귀모형(multiple logistice regression model)을 적합해 보자.
+
+\begin{equation*}
+  \log \left[ \cfrac{P(\text{default = yes} | \text{balance, income, student})}{P(\text{default = no} | \text{balance, income, student})} \right] = \beta_0 + \beta_1 \times \text{balance} + \beta_2 \times \text{income} + \beta_3 \times \text{student}
+\end{equation*}
+
+```{r}
+mglm.fit <- glm(default ~ balance + income + student, data = Default, family = binomial)
+summary(mglm.fit)
+```
+
+`student`를 예측변수로 한 경우 회귀계수는 양수로 학생인 경우 연체할 가능성이 큰 것으로 나타났는데, 다른 변수를 포함시킨 경우에는 `student`의 회귀계수는 음수로 학생인 경우 연체할 가능성이 줄어드는 것으로 나타났다. 이러한 현상을 어떻게 설명해야 할까?
+
+이를 설명하기 위해 다중 로지스틱 회귀모형에서 `income`은 평균으로 고정하고 학생인 경우와 학생이 아닌 경우를 나누어 디폴트일 확률을 구해 보았다.
+
+```{r}
+yes.dat <- data.frame(balance = 0:2655, income = mean(Default$income), student = "Yes")
+no.dat <- data.frame(balance = 0:2655, income = mean(Default$income), student = "No")
+yes.prob <- predict(mglm.fit, yes.dat, type = "response")
+no.prob <- predict(mglm.fit, no.dat, type = "response")
+```
+
+여기서 `yes.dat, no.dat`은 각각 `income`을 평균으로 하고, `balance`는 자료의 최솟값과 최댓값에 대하여 변화하면서 `student = yes`인 경우, `student = no`인 경우로 생성한 새로운 자료를 나타낸다. `predict()`함수를 사용하여 각 경우에 대한 디폴트 확률을 구하여 `yes.prob`과 `no.prob`에 저장하였다. 이에 대한 그림을 살펴보면 다음과 같다.
+
+```{r}
+x =c(0 : 2655)
+plot(x = x, y = yes.prob, col = "lightblue", lwd = 1.0,
+     xlab  = "Balance", ylab = "P(default = yes)")
+# 2) 두 번째 곡선 추가
+lines(x, no.prob, col = "blue", lwd = 1.0)
+legend("topleft",
+       legend = c("Student = Yes", "Student = No"),
+       col    = c("lightblue", "blue"),
+       lty    = 1,
+       lwd    = 2.5,
+       cex    = 1.2,
+       bg     = "white")
+```
+
+즉 학생여부와 상관없이 `balance`가 커짐에 따라 디폴트 확률이 커짐을 알 수 있다. 또한 이 경우 `balance`를 고정하고 보면 학생이 아닌 경우가 학생인 경우보다 디폴트 확률이 크다는 것을 알 수 있다. 이러한 현상은 `balance`와 `income`을 고객들의 평균으로 고정하고 학생인 경우와 학생이 아닌 경우를 비교해 보아도 학생이 아닌 경우 연체할 가능성이 크다는 것을 알 수 있다.
+
+```{r}
+yes.dat2 <- data.frame(balance = mean(Default$balance),
+                       income = mean(Default$income), student = "Yes")
+no.dat2 <- data.frame(balance = mean(Default$balance),
+                       income = mean(Default$income), student = "No")
+yes2.prob <- predict(mglm.fit, yes.dat2, type = "response")
+no2.prob <- predict(mglm.fit, no.dat2, type = "response")
+
+yes2.prob ; no2.prob
+```
+
+위에서 실행한 결과는 다음과 같이 쓸 수 있다. 단, `balance`의 평균값은 835.3749 달러이고, `income`의 평균은 33516.98달러이다.
+
+\begin{eqaution*}
+  \text{yes2.prob} : \hat{P}(\text{default = yes} | \text{balance} = 835.3749, \text{income} = 33516.98, \text{student = yes}) = 0.0013
+\end{equation*}
+
+\begin{eqaution*}
+  \text{no2.prob} : \hat{P}(\text{default = yes} | \text{balance} = 835.3749, \text{income} = 33516.98, \text{student = no}) = 0.0025
+\end{equation*}
+
+그런데, 다음의 상자그림을 보면 학생은 학생이 아닌 사람보다 많은 부채(`balance`)를 지고 있는 것을 알 수 있다. 이런 경우에 `student`만을 예측변수로 두게 되면 `balance`의 영향을 무시하게 되어 학생의 연체 여부에 부채의 효과가 함께 나타나게 된다. 다시 말해, `student`만을 설명변수로 사용한 경우 회귀계수 효과에는 `balance`의 효과가 교락(confounding)되기 때문에, `student`만을 설명변수로 사용한 회귀계수 추정값과, `balance`도 예측변수로 포함한 모형에서의 `student`회귀계수 추정값은 부호가 달라지는 현상이 발생할 수 있다. 이러한 현상을 심슨의 패러독스(Simpson's paradox)라고 한다. 따라서, `balance`의 정보가 있는 경우 다중 로지스틱 회귀모형을 통해 다른 변수들의 값이 동일한 일반인보다 학생이 연체가능성이 작다고 평가할 수 있다.
+
+```{r}
+boxplot(balance ~ student, data = Default)
+```
+
+## 연습문제
+
+### 16.1
+
+```{r}
+x = c(410, 500, 471, 619, 584, 681, 399, 481, 624, 589)
+y = c(0, 1, 0, 1, 0, 1, 0, 1, 1, 1)
+```
+
+#### 16.1 - (1)
+
+```{r}
+X = cbind(x)
+reg_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+reg_res$beta_hat
+```
+
+#### 16.1 - (2)
+
+```{r}
+source("functions/mult_reg.R", echo = FALSE)
+
+IRWLS_res = irwls_logistic_reg(X, y)
+```
+
+#### 16.1 - (3)
+
+```{r}
+simp_res = mult_reg(X, y, alpha = 0.05, coeff = TRUE)
+MSE = simp_res$MSE
+W = IRWLS_res$W
+
+one = c(rep(1, length(x)))
+X = cbind(one, x)
+## 단순회귀 beta_hat 분산
+var_beta_hat_LSE = MSE * solve(t(X) %*% X)
+
+## IRWLS beta_hat 분산
+var_beta_hat_IRWLS = solve(t(X) %*% W %*% X)
+
+var_beta_hat_LSE ; var_beta_hat_IRWLS
+```
+
+#### 16.1 - (4)
+
+```{r}
+beta_hat_IRWLS = IRWLS_res$beta_hat
+
+
+score = t(c(1, 550)) %*% beta_hat_IRWLS
+p_hat_y_1_x_500 = exp(score) / (1 + exp(score))
+p_hat_y_1_x_500
+```
+
+
+
+
+
+
+#### 번외 - ISLR Default 데이터셋에 대한 IRWLS
+
+```{r}
+library(ISLR)
+library(dplyr)
+dataset_default = Default %>% na.omit()
+
+X = dataset_default %>%
+  dplyr::select(balance:income)
+y = ifelse(dataset_default$default == "Yes", 1, 0)
+
+X = as.matrix(X)
+
+default_irwls_res = irwls_logistic_reg(X, y, tol = 1e-8)
+glm_res <- glm(default ~ balance + income, data = Default, family = binomial)
+glm_res$coefficients
+```
+
+신용불량 데이터셋에 대해서 `irwls_logistic_reg()`함수와 `glm()`함수에서 적합된 회귀계수를 비교해보면 서로 같음을 확인할 수 있다. 이를 통해 `glm()`함수는 내부적으로 IRWLS 알고리즘을 통해 로지스틱 회귀모형을 적합시키는 것을 알 수 있다. 다만 수렴속도가 굉장히 빠른 것으로 보아 Rcpp등의 계산속도 향상이 이뤄지는 코드가 추가된게 `glm()`이라는 것 같다.
+
+```{r}
+summary(glm_res)
+anova(glm_res)
+```
+
+### 16.2
+
+```{r}
+x = c(12, 15, 42, 52, 59, 73, 82, 91, 96, 105, 114, 120, 121, 128, 130, 139, 139, 157,
+      1, 1, 2, 8, 11, 18, 22, 31, 37, 61, 72, 81, 97, 112, 118, 127, 131, 140, 151, 159, 177, 206)
+y = c(rep(1, 18), rep(0, 22))
+```
+
+#### 16.2 - (1)
+
+```{r}
+X = cbind(x)
+IRWLS_res = irwls_logistic_reg(X, y)
+GLM_res = glm(y ~ x, family = binomial)
+GLM_res$coefficients
+```
+
+```{r}
+summary(GLM_res)
+anova(GLM_res)
+```
+
+#### 16.2 - (2)
+
+```{r}
+op <- par(no.readonly = TRUE)
+par(mar = c(5, 4, 4, 8) + 0.1)
+plot(y ~ x, col = ifelse(y == 1, "lightblue", "blue"), cex = 0.85)
+par(xpd = NA)
+legend("topright",
+       legend = c("kyphosis = yes", "kyphosis = no"),
+       inset  = c(-0.25, 0),
+       col    = c("lightblue", "blue"),
+       lty    = 1,
+       cex    = 0.6,
+       bg     = "white")
+
+par(op)
+```
+
+```{r}
+op <- par(no.readonly = TRUE)
+par(mar = c(5, 4, 4, 8) + 0.1)
+plot(x ~ y, col = ifelse(y == 1, "lightblue", "blue"), cex = 0.85)
+par(xpd = NA)
+legend("topright",
+       legend = c("kyphosis = yes", "kyphosis = no"),
+       inset  = c(-0.25, 0),
+       col    = c("lightblue", "blue"),
+       lty    = 1,
+       cex    = 0.6,
+       bg     = "white")
+
+par(op)
+```
+
+```{r}
+X_df = data.frame(X)
+kyphosis_yes_prob = predict(GLM_res, X_df, type = "response")
+
+plot(x = x, y = kyphosis_yes_prob, xlab = "age", ylab = "P(kyphosis = yes | age)",
+     lwd = 1.0, col = "lightblue", cex = 0.8, pch = 21, bg  = "lightblue")
+```
+
+#### 16.2 - (3)
+
+```{r}
+X = cbind(x, x^2)
+colnames(X) = c("age", "age^2")
+
+IRWLS_res = irwls_logistic_reg(X, y)
+GLM_res = glm(y ~ X, family = binomial)
+GLM_res$coefficients
+```
+
+```{r}
+summary(GLM_res)
+anova(GLM_res)
+```
+
+```{r}
+X_df = data.frame(X)
+kyphosis_yes_prob = predict(GLM_res, X_df, type = "response")
+
+plot(x = x, y = kyphosis_yes_prob, xlab = "age", ylab = "P(kyphosis = yes | age)",
+     lwd = 1.0, col = "lightblue", cex = 0.8, pch = 21, bg  = "lightblue")
+```
+
+### 16.6
+
+```{r}
+x11 = c(rep(1, 484)) ; y11 = c(rep(1, 484))
+x12 = c(rep(1, 27)) ; y12 = c(rep(0, 27))
+x21 = c(rep(0, 385)) ; y21 = c(rep(1, 385))
+x22 = c(rep(0, 90)) ; y22 = c(rep(0, 90))
+
+x = c(x11, x12, x21, x22) ; y = c(y11, y12, y21, y22)
+
+X = cbind(x)
+
+IRWLS_res = irwls_logistic_reg(X, y)
+GLM_res = glm(y ~ X, family = binomial)
+GLM_res$coefficients
+```
+
+```{r}
+summary(GLM_res)
+anova(GLM_res)
+```
+
+거꾸로 해본다 (분석결과가 이상하므로)
+
+```{r}
+x11 = c(rep(1, 484)) ; y11 = c(rep(1, 484))
+x12 = c(rep(1, 27)) ; y12 = c(rep(0, 27))
+x21 = c(rep(0, 385)) ; y21 = c(rep(1, 385))
+x22 = c(rep(0, 90)) ; y22 = c(rep(0, 90))
+
+y = c(x11, x12, x21, x22) ; x = c(y11, y12, y21, y22)
+
+X = cbind(x)
+
+IRWLS_res = irwls_logistic_reg(X, y)
+GLM_res = glm(y ~ X, family = binomial)
+GLM_res$coefficients
+```
+
+```{r}
+summary(GLM_res)
+anova(GLM_res)
+```
