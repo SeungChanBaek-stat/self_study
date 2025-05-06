@@ -10,7 +10,7 @@ ridge_reg = function(X, y, lambda){
   # X = as.matrix(X) ; y = as.matrix(y)
   
   ## 표준화
-  n = dim(X)[1] ; p = dim(X)[2] ; L = length(lambda) ; I = diag(1, p)
+  n = dim(X)[1] ; p = dim(X)[2] ; L = length(lambda) ; Ip = diag(1, p) ; In = diag(1, n)
   
   ### 1. 8장 3절에서 소개하는 표준화방식
   # standard_res = standard_calc(X, y)
@@ -33,12 +33,29 @@ ridge_reg = function(X, y, lambda){
   ## 능형회귀추정
   beta_hat_ridge = matrix(NA, nrow = p, ncol = L)
   
-  for (j in 1:L){
-    k = lambda[j]
-    XtX = t(X) %*% X ; kI = k * I 
-    beta_hat = solve(XtX + kI) %*% t(X) %*% y
-    beta_hat_ridge[,j] = beta_hat
+  if (p >= n){
+    print(glue("High dimensional problem : p = {p} > n = {n}"))
+    X_svd <- svd(X, nu = n, nv = p)
+    U = X_svd$u ; d = X_svd$d ; V = X_svd$v
+    V_pn = V[,c(1:n)] ; D_nn = diag(d)
+    
+    for (j in 1:L){
+      k = lambda[j]
+      DtD = t(D_nn) %*% D_nn ; kIn = k * In
+      beta_hat = V_pn %*% solve(DtD + kIn) %*% t(D_nn) %*% t(U) %*% y
+      beta_hat_ridge[,j] = beta_hat
+    }
+    
+  }else{
+    for (j in 1:L){
+      k = lambda[j]
+      XtX = t(X) %*% X ; kIp = k * Ip 
+      beta_hat = solve(XtX + kIp) %*% t(X) %*% y
+      beta_hat_ridge[,j] = beta_hat
+    }    
   }
+  
+
   
   rownames(beta_hat_ridge) = rowname_vec_X
   colnames(beta_hat_ridge) = colname_vec_X

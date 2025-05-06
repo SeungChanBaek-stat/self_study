@@ -1,0 +1,179 @@
+---
+title: "고급회귀분석 17장"
+output: html_document
+date: "2025-05-06"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 17.1 능형 회귀
+
+```{r}
+source("functions/mult_reg.R", echo = F)
+source("functions/reg_diagnostics.R", echo = F)
+source("functions/var_selection.R", echo = F)
+source("functions/anova_reg.R", echo = F)
+source("functions/biased_reg.R", echo = F)
+```
+
+
+
+```{r}
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("Biobase")
+
+# if (!require("BiocManager", quietly = TRUE))
+#     install.packages("BiocManager")
+# 
+# BiocManager::install("breastCancerVDX")
+
+# library(Biobase)
+# library(breastCancerVDX)
+# 
+# data(vdx)
+```
+
+
+
+```{r}
+# dim(vdx)
+# 
+# # ids of genes FLOT1
+# idFLOT1 <- which(fData(vdx)[,5] == 10211)
+# # ids of ERBB2
+# idERBB2 <- which(fData(vdx)[,5] == 2064)
+# 
+# # get expression levels of probes mapping to FLOT genes
+# X <- t(exprs(vdx)[idFLOT1,])
+# 
+# # get expression levels of probes mapping to FLOT genes
+# Y <- t(exprs(vdx)[idERBB2,])
+# 
+# dim(X)
+# dim(Y)
+# 
+# colnames(vdx)
+# dim(vdx)
+# 
+# vdx_df = data.frame(vdx)
+# vdx_df
+```
+
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Generate synthetic high-dimensional data
+n_samples <- 100   # Number of samples
+n_features <- 400 # Number of features
+
+# Predictors (features)
+X <- matrix(rnorm(n_samples * n_features), n_samples, n_features)
+
+# Response variable
+beta <- rnorm(n_features)
+y <- X %*% beta + rnorm(n_samples)
+```
+
+```{r}
+lambda = seq(0.01, 100, by = 0.01)
+ridge_res = ridge_reg(X, y, lambda)
+ridge_coef = ridge_res
+```
+
+
+```{r}
+op <- par(no.readonly = TRUE)
+par(mar = c(5, 4, 4, 8) + 0.1)
+
+matplot(lambda,
+        t(ridge_coef),
+        type = "l",
+        lty  = 1,
+        col  = 1:ncol(ridge_coef),
+        xlab = expression(k),
+        ylab = expression(bold(beta)(k)),
+        main = "n=100, p=400 데이터의 능형트레이스")
+
+par(xpd = NA)
+# legend("topright",
+#        inset  = c(-0.25, 0),
+#        legend = rownames(ridge_coef),
+#        col    = 1:ncol(ridge_coef),
+#        lty    = 1,
+#        cex    = 0.6,
+#        bg     = "white")
+
+par(op)
+```
+
+```{r}
+## True beta와 estimated beta 거리 비교
+library(glue)
+tol = 1e-8 ; L = dim(ridge_coef)[2]
+
+# dim(ridge_coef)
+# t(ridge_coef[1] - beta) %*% beta
+
+## sigma^2 = 1 가정
+n = n_samples ; p = n_features
+X_svd <- svd(X, nu = n, nv = p)
+U = X_svd$u ; d = X_svd$d ; V = X_svd$v
+
+MSE_calc = function(D, V, k, n, p, beta){
+  Var_term = 0
+  for (j in 1:n){
+    num = d[j]^2
+    denum = (d[j]^2 + k)^2
+    Var_term = Var_term + (num / denum)
+  }
+  
+  bias_sq_term = 0
+  for (j in 1:n){
+    num = (t(V[,j]) %*% beta)^2
+    denum = (d[j]^2 + k)^2
+    bias_sq_term = bias_sq_term + (num/denum)
+  }
+  bias_sq_term = k^2 * bias_sq_term
+  
+  MSE = Var_term + bias_sq_term
+  
+  return(MSE)
+}
+
+### lambda = 10, 20, ..., 100 의 경우
+print(glue("True beta norm = {sqrt(sum(beta^2))} "))
+for (k in 1:10){
+  k_1000 = k * 1000
+  print(glue("lambda = {0.01 * k_1000}"))
+  print(glue("supreme norm distance = {max(abs(ridge_coef[,k_1000] - beta))}"))
+  print(glue("MSE = {MSE_calc(d, V, k, n, p, beta)}"))
+  print(glue("ridge estimated beta norm = {sqrt(sum(ridge_coef[,k_1000]^2))} "))
+  if (max(abs(ridge_coef[k_1000] - beta)) < tol){
+    print(glue("ridge estimator has reached true beta"))
+  }
+}
+
+### lambda = 0.01, 0.02, ..., 1 의 경우
+print(glue("True beta norm = {sqrt(sum(beta^2))} "))
+for (k in 1:100){
+  print(glue("lambda = {0.01 * k}"))
+  print(glue("MSE = {MSE_calc(d, V, k, n, p, beta)}"))
+  print(glue("supreme norm distance = {max(abs(ridge_coef[,k] - beta))}"))
+  print(glue("ridge estimated beta norm = {sqrt(sum(ridge_coef[,k]^2))} "))
+  if (max(abs(ridge_coef[k] - beta)) < tol){
+    print(glue("ridge estimator has reached true beta"))
+  }
+}
+```
+
+이러한 고차원 시뮬레이션 데이터셋에 대한 능형회귀 실험결과, MSE기준에서 능형회귀가 최소제곱회귀보다 좋다는 점을 알 수 있다. 그러나 MSE기준이 아닌 다른 기준 (supreme norm, euclidean norm 등)에서는 최소제곱회귀보다 좋은 점을 찾기 어려움도 알 수 있다. 
+
+<!-- 그리고 $MSE(\hat{\beta}(k))$가 $k$에 대한 함수이면서 $k \rightarrow 0$일 때 최소제곱회귀추정량에 가까워진다는 점과 $k \rightarrow \infty$일 때 0벡터에 가까워진다는 점도 확인할 수 -->
