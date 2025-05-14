@@ -1,0 +1,341 @@
+---
+title: "시계열분석 1장"
+output: html_document
+date: "2025-05-14"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+list.files("../adv_reg/functions")
+getwd()
+```
+
+```{r}
+source("../adv_reg/functions/mult_reg.R", echo = F)
+source("../adv_reg/functions/reg_diagnostics.R", echo = F)
+```
+
+## 1.9 프로그램 및 설명
+
+```{r}
+## Figure 1.1 : 불규칙 성분
+set.seed(1245)
+n = 100
+z <- 5000 + 20 *  rnorm(n) # 정규 난수 생성
+z.ts <- ts(z, start = c(1980, 1), frequency = 12) # 시계열자료로 변환
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "그림 1-1 불규칙성분") ; abline(h = 5000)
+```
+
+```{r}
+## Figure 1.2 : 추세성분
+set.seed(1234)
+n = 100 ; t <- 1:n
+x <- 0.5 * t ; z <- 0.5 * t + rnorm(n)
+z.ts <- ts(z, start = c(1980, 1), frequency = 12)
+x.ts <- ts(x, start = c(1980, 1), frequency = 12)
+ts.plot(z.ts, x.ts, col = c("blue", "red"), lty = 1:2, xlab = "date", ylab = "Zt",
+        main = "그림 1-2 추세성분")
+legend("topleft", col = c("blue", "red"), legend = c("series", "trend"), lty = 1:2)
+```
+
+```{r}
+## Figure 1.3 : 계절성분
+n = 120 ; t <- 1:n
+a <- rnorm(n, 0, 1)
+z <- 10 + 3 * sin((2*pi*t)/12) + 0.8 * a
+z.ts <- ts(z, start = c(1980, 1), frequency = 12)
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "그림 1-3 계절성분")
+```
+
+```{r}
+## Figure 1.4 : 계절성분
+setwd("C:/Users/AAA/self_study/tsa/datasets")
+# list.files()
+z <- scan("depart.txt")
+lz <- log(z) # log transform
+t <- 1:length(z)
+x <- 6.3 + 0.012 * t
+fig <- data.frame(lz, x) # 여러 개의 그림을 동시에 그리기 위해 data frame 생성
+z.ts <- ts(fig, start = c(1984, 1), frequency = 12)
+ts.plot(z.ts, lty = 1:2, xlab = "date", ylab = "logZ",
+        main = "그림 1-4 추세성분과 계절성분")
+legend("topleft", legend = c("series", "trend"), lty = 1:2)
+```
+
+```{r}
+## Figure 1.5 : 변동폭이 다른 시계열자료
+setwd("C:/Users/AAA/self_study/tsa/datasets")
+z <- scan("koreapass.txt")
+z.ts <- ts(z, start = c(1981, 1), frequency = 12)
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "그림 1-5 분산이 변하는 시계열")
+```
+
+```{r}
+## Figure 1.6 : 추세선이 두 개인 시계열자료
+set.seed(4321)
+n = 120 ; t = 1:n
+a = rnorm(n) ; x = 3*(t-46)
+x[t<=60] = 0.5 * t[t<=60]
+z = x + a
+z.ts = ts(z, frequency = 12, start = c(1985, 1))
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "그림 1-6 추세가 변하는 시계열") ; abline(v = 1990)
+```
+
+## 연습문제
+
+### 1.5
+
+```{r}
+set.seed(461)
+n = 100 ; t = 1:n
+e1t = rnorm(n, 0, 1) ; Z1t = 100 + e1t
+e2t = rnorm(n, 0, 1) ; Z2t = 500 + e2t
+e3t = rnorm(n, 0, 10) ; Z3t = 100 + e3t
+e4t = rnorm(n, 0, 1) ; Z4t = 100 + t * e4t
+z1.ts <- ts(Z1t, start = c(1980, 1), frequency = 10)
+z2.ts <- ts(Z2t, start = c(1980, 1), frequency = 10)
+z3.ts <- ts(Z3t, start = c(1980, 1), frequency = 10)
+z4.ts <- ts(Z4t, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  z1.ts, z2.ts, z3.ts, z4.ts,
+  col    = c("black", "red", "blue", "darkgreen"),
+  lty    = 1:4,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("Z1t", "Z2t", "Z3t", "Z4t"),
+  col    = c("black", "red", "blue", "darkgreen"),
+  lty    = 1:4,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+### 1.6
+
+```{r}
+## (1)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = c(rep(100, n)) ; Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+```{r}
+## (2)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = 100 + t ; Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+```{r}
+## (3)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = 100 + t + 2 * (t^2) ; Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+```{r}
+## (4)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = 100 + sin((2 * pi * t)/12) + cos((2 * pi * t)/12); Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+```{r}
+## (5)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = 100 + sin((2 * pi * t)/4) + cos((2 * pi * t)/4); Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+```{r}
+## (6)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = 100 + 0.3 *t + sin((2 * pi * t)/12) + cos((2 * pi * t)/12); Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+```{r}
+## (7)
+set.seed(461)
+n = 100 ; t = 1:n
+et = rnorm(n, 0, 1) ; EZt = 100 + sin((2*pi*t)/12) + cos((2*pi*t)/12) + 0.8*sin((2*pi*t)/6) + 0.7*cos((2*pi*t)/6)
+Zt = EZt + et
+Ez.ts <- ts(EZt, start = c(1980, 1), frequency = 10)
+z.ts <- ts(Zt, start = c(1980, 1), frequency = 10)
+
+ts.plot(
+  Ez.ts, z.ts,
+  col    = c("red", "blue"),
+  lty    = 1:2,                 
+  xlab   = "date",
+  ylab   = "Zt",
+  main   = "모의시계열자료 분석"
+)
+
+legend(
+  "topleft",
+  legend = c("EZt", "Zt"),
+  col    = c("red", "blue"),
+  lty    = 1:2,
+  bty    = "n"   # 범례 박스 숨기기
+)
+```
+
+### 1.7
+
+```{r}
+## (1)
+setwd("C:/Users/AAA/self_study/tsa/datasets")
+z <- scan("female.txt")
+z.ts <- ts(z, start = c(1981, 1), frequency = 12)
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "월별 전문직 여성 종사자수")
+```
+
+```{r}
+## (2)
+setwd("C:/Users/AAA/self_study/tsa/datasets")
+z <- scan("build.txt")
+z.ts <- ts(z, start = c(1981, 1), frequency = 12)
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "월별 건축허가 면적")
+```
+
+```{r}
+## (3)
+setwd("C:/Users/AAA/self_study/tsa/datasets")
+z <- scan("export.txt")
+z.ts <- ts(z, start = c(1981, 1), frequency = 12)
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "월별 수출액")
+```
+
+```{r}
+## (4)
+setwd("C:/Users/AAA/self_study/tsa/datasets")
+z <- scan("female.txt")
+z.ts <- ts(z, start = c(1981, 1), frequency = 12)
+ts.plot(z.ts, xlab = "date", ylab = "Zt", main = "미국 월별 비행기 승객 수")
+```
