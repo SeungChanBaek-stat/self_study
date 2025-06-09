@@ -1,0 +1,544 @@
+---
+title: "시계열분석 3장"
+output: html_document
+date: "2025-05-30"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glue)
+list.files("../adv_reg/functions")
+dir = getwd() ; mother_dir = dirname(dir)
+dataset_dir = glue(dir, "/datasets", sep = "")
+```
+
+```{r}
+reg_function_dir = glue(mother_dir, "/adv_reg/functions")
+source(glue(reg_function_dir, "/mult_reg.R", sep = ""), echo = F)
+source(glue(reg_function_dir, "/reg_diagnostics.R", sep = ""), echo = F)
+
+tsa_function_dir = glue(mother_dir, "/tsa/functions")
+source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
+```
+
+## 3.1 지수평활법
+
+### 예제 3.1 단순지수평활에 의한 예측 예제
+
+```{r}
+## Example 3.1 : 단순지수평활법
+library(forecast) # library for function ses
+library(glue)
+z <- scan(glue(dataset_dir, "/mindex.txt"))
+mindex <- ts(z, start = c(1986, 1), frequency = 12)
+
+# 최적 평활상수 구하기
+w <- c(seq(0.1, 0.8, 0.1), seq(0.81, 0.99, 0.01))
+sse <- sapply(w, function(x)
+  return(sum(ses(mindex, alpha = x, h = 6)$residuals^2)))
+
+w1 = w[-c(1:6)] # xaxis from 0.7 to 1.0
+sse1 = sse[-c(1:6)]
+plot(w1, sse1, type = "o", xlab = "weight", ylab = "sse",
+     main = "그림 3-2 1-시차 후 예측오차의 제곱합")
+w[which.min(sse)] # 최적평활상수값
+```
+
+```{r}
+fit1 <- ses(mindex, alpha = 0.9, h = 6)
+acf(resid(fit1), lag.max = 12) # 자기상관계수
+t.test(resid(fit1), mu = 0)
+plot(fit1, xlab = "year", ylab = "mindex",
+     main = "그림 3-1 중간재 출하지수와 단순지수평활값 alpha = 0.9",
+     lty = 1, col = "black")
+lines(fit1$fitted, col = "red", lty = 2)
+legend("topright", legend = c("Mindex", "alpha = 0.9"),
+       lty = 1:2, col = c("black", "red"))
+# fit1.ts = ts(fit1)
+# fit1$fitted
+# ts.plot(mindex, fit1.ts$fitted, xlab = "year", ylab = "mindex",
+#         main = "그림 3-1 중간재 출하지수와 단순지수평활값 alpha = 0.9",
+#         lty = 1:2, col = c("black", "blue"))
+
+plot(fit1$residuals, ylab = "residual",
+     main = "그림 3-4 예측오차의 시계열그림 : alpha = 0.9") ; abline(h = 0)
+```
+
+```{r}
+fit2 <- ses(mindex, alpha = 0.2, h = 6)
+t.test(resid(fit2), mu = 0)
+acf(resid(fit2), lag.max = 12) # 자기상관계수
+plot(fit2, xlab = "year", ylab = "mindex",
+     main = "그림 3-3 중간재 출하지수와 단순지수평활값 alpha = 0.2",
+     lty = 1, col = "black")
+lines(fit2$fitted, col = "red", lty = 2)
+legend("topright", legend = c("Mindex", "alpha = 0.2"),
+       lty = 1:2, col = c("black", "red"))
+plot(fit2$residuals, ylab = "residual",
+     main = "그림 3-5 예측오차의 시계열그림 : alpha = 0.2") ; abline(h = 0)
+```
+
+```{r}
+# 두 모형의 비교
+round(rbind(accuracy(fit1), accuracy(fit2)), digits = 3)
+
+# 추정된 alpha를 이용한 단순지수평활
+fit3 <- ses(mindex, h = 6)
+fit3$model
+plot(fit3, xlab = "year", ylab = "mindex",
+     main = "중간재 출하지수와 단순지수평활값 : alpha estimated",
+     lty = 1, col = "black")
+lines(fit3$fitted, col = "red", lty = 2)
+legend("topright", legend = c("Mindex", "estimated alpha"),
+       lty = 1:2, col = c("black", "red"))
+plot(fit3$residuals, ylab = "residual",
+     main = "예측오차의 시계열그림 : 추정된 alpha") ; abline(h = 0)
+```
+
+### 예제 3.2 이중지수평활에 의한 예측 예제
+
+```{r}
+library(forecast) # library for function holt
+z <- scan(glue(dataset_dir, "/stock.txt"))
+stock <- ts(z, start = c(1984, 1), frequency = 12)
+
+## 1모수 이중지수평활
+fit4 = holt(stock, alpha = 0.6, beta = 0.6, h = 6)
+fit4$model
+plot(fit4, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = "그림 3-6 중간재 출하지수와 이중지수평활값 : alpha = beta = 0.6")
+lines(fit4$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Index", "Double"))
+
+plot(fit4$residuals, main = "그림 3-7 예측오차의 시계열 그림") ; abline(h = 0)
+acf(fit4$residuals)
+t.test(fit4$residuals, mu = 0)
+```
+
+```{r}
+## 2모수 이중지수평활
+fit5 = holt(stock, h = 6)
+fit5$model
+plot(fit5, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = "중간재 출하지수와 이중지수평활값 : alpha, beta estimated")
+lines(fit5$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Index", "Double"))
+
+plot(fit5$residuals, main = "예측오차의 시계열 그림 : alpha, beta estimated") ; abline(h = 0)
+acf(fit5$residuals)
+t.test(fit5$residuals, mu = 0)
+```
+
+## 3.2 계절지수평활법
+
+### 예제 3.3 Winters의 계절지수평활에 의한 예측 예제
+
+```{r}
+## Example 3.3 : Holt-Winters Method
+library(forecast) # library for function HW(Holt-Winters)
+library(astsa) # library for function acf2
+z <- scan(glue(dataset_dir, "/koreapass.txt"))
+pass <- ts(z, start = c(1981, 1), frequency = 12)
+
+# Holt Winters additive model
+fit6 = hw(pass, seasonal = "additive", h = 12)
+fit6$model
+plot(fit6, ylab = "passenger", xlab = "year", lty = 1, col = "blue",
+     main = "그림 3-8 가법모형")
+lines(fit6$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("Pass", "Additive"))
+
+ts.plot(fit6$residuals, ylab = "residual", main = "그림 3-10 가법모형의 예측오차") ; abline(h = 0)
+acf(fit6$residuals, main = "Residual ACF")
+t.test(fit6$residuals, mu = 0)
+```
+
+```{r}
+# Holt Winters multiplicative model
+fit7 = hw(pass, seasonal = "multiplicative", h = 12)
+fit7$model
+plot(fit7, ylab = "passenger", xlab = "year", lty = 1, col = "blue", main = "그림 3-9 승법모형")
+lines(fit6$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("Pass", "Multiplicative"))
+
+ts.plot(fit7$residuals, ylab = "residual", main = "그림 3-11 승법모형의 예측오차") ; abline(h = 0)
+acf2(fit7$residuals, main = "Residual ACF")
+t.test(fit7$residuals, mu = 0)
+
+```
+
+## 연습문제
+
+### 3.1
+
+```{r}
+z <- scan(glue(dataset_dir, "/mindex.txt"))
+mindex <- ts(z, start = c(1986, 1), frequency = 12)
+
+mindex
+
+class(mindex)
+simple_exp_smt = function(dataset, w, init_val, l){
+  S_0 = init_val ; n = length(dataset) ; Z = dataset
+  Z_hat_l_vec = c(rep(0, n))
+  
+  for (i in 1:n){
+    if (i == 1){
+      Z_hat_l_vec[i] = S_0
+    }else{
+      Z_hat_l_vec[i] = w * Z[i-1] + (1- w) * Z_hat_l_vec[i-1]
+    }
+  }
+  residual_l = as.vector(Z) - Z_hat_l_vec
+  MSE = sum(residual_l^2)/n
+  MAE = sum(abs(residual_l))/n
+  MAPE = 100 * sum(abs(residual_l/Z))/n
+
+  return(list(Z_hat_l = Z_hat_l_vec, residual_l = residual_l, MSE = MSE, MAE = MAE, MAPE = MAPE))
+}
+
+simp_exp_smt_fit1 = simple_exp_smt(mindex, w = 0.89, init_val = 15.1875, l = 1)
+simp_exp_smt_fit2 = simple_exp_smt(mindex, w = 0.2, init_val = 15.1875, l = 1)
+
+
+simp_exp_smt_fit1$Z_hat_l
+simp_exp_smt_fit2$Z_hat_l
+
+simp_exp_smt_fit1$residual_l
+simp_exp_smt_fit2$residual_l
+```
+
+### 3.2
+
+```{r}
+z <- scan(glue(dataset_dir, "/stock.txt"))
+stock <- ts(z, start = c(1984, 1), frequency = 12)
+
+fit_holt = holt(stock, alpha = 0.6, beta = 0.6, h = 6)
+fit_holt$model
+fit_holt$fitted
+```
+
+```{r}
+z <- scan(glue(dataset_dir, "/stock.txt"))
+stock <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(stock) ; t = seq(1, n, 1)
+
+double_exp_smt_fit = double_exp_smt(stock, w = 0.6, l = 1)
+
+# double_exp_smt_fit$Z_hat_l
+# double_exp_smt_fit$residual_l
+double_exp_smt_fit$MSE
+double_exp_smt_fit$MAE
+double_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(double_exp_smt_fit$Z_hat_l, 
+               start = start(stock),       # c(1984, 1)
+               frequency = frequency(stock))  # 12
+
+plot(stock, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = "그림 3-6 중간재 출하지수와 이중지수평활값 : alpha = beta = 0.6")
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Index", "Double"))
+```
+
+### 3.5
+
+```{r}
+## (a)
+z <- scan(glue(dataset_dir, "/female.txt"))
+female <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(stock) ; t = seq(1, n, 1)
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, female, "double_exp_smt", l = 1) 
+w_opt = doub_exp_smt_weight_sel
+
+double_exp_smt_fit = double_exp_smt(female, w = w_opt, l = 1)
+
+# double_exp_smt_fit$Z_hat_l
+# double_exp_smt_fit$residual_l
+double_exp_smt_fit$MSE
+double_exp_smt_fit$MAE
+double_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(double_exp_smt_fit$Z_hat_l,
+               start = start(female),       # c(1984, 1)
+               frequency = frequency(female))  # 12
+
+plot(female, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = glue("월별 여성근로자수와 이중지수평활값 : alpha = beta = {w_opt}"))
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Index", "Double"))
+
+ts.plot(double_exp_smt_fit$residual_l, ylab = "residual", main = "이중지수모형의 예측오차") ; abline(h = 0)
+acf(double_exp_smt_fit$residual_l, main = "Residual ACF")
+t.test(double_exp_smt_fit$residual_l, mu = 0)
+```
+
+```{r}
+## (a)
+z <- scan(glue(dataset_dir, "/female.txt"))
+female <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(stock) ; t = seq(1, n, 1)
+
+w_vec = seq(0.01, 1, by = 0.01)
+simp_exp_smt_weight_sel = exp_weight_sel(w_vec, female, "simple_exp_smt", l = 1) 
+w_opt = simp_exp_smt_weight_sel
+
+simple_exp_smt_fit = simple_exp_smt(female, w = w_opt, l = 1, init_val = female[1])
+
+simple_exp_smt_fit$MSE
+simple_exp_smt_fit$MAE
+simple_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(simple_exp_smt_fit$Z_hat_l,
+               start = start(female),       # c(1984, 1)
+               frequency = frequency(female))  # 12
+
+plot(female, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = glue("월별 여성근로자수와 단순지수평활값 : alpha = {w_opt}"))
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Index", "Simple"))
+
+ts.plot(simple_exp_smt_fit$residual_l, ylab = "residual", main = "단순지수모형의 예측오차") ; abline(h = 0)
+acf(simple_exp_smt_fit$residual_l, main = "Residual ACF")
+t.test(simple_exp_smt_fit$residual_l, mu = 0)
+```
+
+```{r}
+## (b) - Holt Winters multiplicative model
+library(forecast)
+z <- scan(glue(dataset_dir, "/build.txt"))
+build <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(build) ; t = seq(1, n, 1)
+
+winters_multiplicative_smt_fit = hw(build, seasonal = "multiplicative", h = 12)
+winters_multiplicative_smt_fit$model
+plot(winters_multiplicative_smt_fit, ylab = "build", xlab = "year", lty = 1, col = "blue",
+     main = "월별 건축허가면적 승법모형")
+lines(winters_multiplicative_smt_fit$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("Build", "multiplicative"))
+
+MSE = sum(winters_multiplicative_smt_fit$residuals^2) / n
+print(glue("MSE = {MSE}"))
+
+ts.plot(winters_multiplicative_smt_fit$residuals, ylab = "residual", main = "승법모형의 예측오차") ; abline(h = 0)
+acf(winters_multiplicative_smt_fit$residuals, main = "Residual ACF")
+t.test(winters_multiplicative_smt_fit$residuals, mu = 0)
+```
+
+```{r}
+## (c) - Holt Winters multiplicative model
+z <- scan(glue(dataset_dir, "/export.txt"))
+export <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(export) ; t = seq(1, n, 1)
+
+plot(export, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = glue("월별 수출액(단위 : 억$) 시각화"))
+
+library(forecast)
+
+winters_multiplicative_smt_fit = hw(export, seasonal = "multiplicative", h = 12)
+winters_multiplicative_smt_fit$model
+plot(winters_multiplicative_smt_fit, ylab = "export", xlab = "year", lty = 1, col = "blue",
+     main = "월별 수출액(단위 : 억$) Holt-Winters 승법모형")
+lines(winters_multiplicative_smt_fit$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("Export", "multiplicative"))
+
+MSE = sum(winters_multiplicative_smt_fit$residuals^2) / n
+print(glue("MSE = {MSE}"))
+
+ts.plot(winters_multiplicative_smt_fit$residuals, ylab = "residual", main = "승법모형의 예측오차") ; abline(h = 0)
+acf(winters_multiplicative_smt_fit$residuals, main = "Residual ACF")
+t.test(winters_multiplicative_smt_fit$residuals, mu = 0)
+```
+
+
+```{r}
+## (d) - Holt Winters multiplicative model
+z <- scan(glue(dataset_dir, "/usapass.txt"))
+usapass <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(usapass) ; t = seq(1, n, 1)
+
+plot(usapass, ylab = "Index", xlab = "year", lty = 1, col = "black",
+     main = glue("미국 월별 비행기 승객 수(단위 : 천 명) 시각화"))
+
+library(forecast)
+winters_multiplicative_smt_fit = hw(usapass, seasonal = "multiplicative", h = 12)
+winters_multiplicative_smt_fit$model
+plot(winters_multiplicative_smt_fit, ylab = "passenger", xlab = "year", lty = 1, col = "blue",
+     main = "미국 월별 비행기 승객 수(단위 : 천 명) 승법모형")
+lines(winters_multiplicative_smt_fit$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("Passenger", "multiplicative"))
+
+MSE = sum(winters_multiplicative_smt_fit$residuals^2) / n
+print(glue("MSE = {MSE}"))
+
+ts.plot(winters_multiplicative_smt_fit$residuals, ylab = "residual", main = "승법모형의 예측오차") ; abline(h = 0)
+acf(winters_multiplicative_smt_fit$residuals, main = "Residual ACF")
+t.test(winters_multiplicative_smt_fit$residuals, mu = 0)
+```
+
+```{r}
+## (e) - Holt Winters multiplicative model
+z <- scan(glue(dataset_dir, "/depart.txt"))
+depart <- ts(z, start = c(1984, 1), frequency = 12)
+n = length(depart) ; t = seq(1, n, 1)
+
+plot(depart, ylab = "Depart", xlab = "year", lty = 1, col = "black",
+     main = glue("월별 백화점 매출액(단위 : 십만원) 시각화"))
+
+library(forecast)
+winters_multiplicative_smt_fit = hw(depart, seasonal = "multiplicative", h = 12)
+winters_multiplicative_smt_fit$model
+plot(winters_multiplicative_smt_fit, ylab = "depart", xlab = "year", lty = 1, col = "blue",
+     main = "월별 백화점 매출액(단위 : 십만원) 승법모형")
+lines(winters_multiplicative_smt_fit$fitted, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("Depart", "multiplicative"))
+
+MSE = sum(winters_multiplicative_smt_fit$residuals^2) / n
+print(glue("MSE = {MSE}"))
+
+ts.plot(winters_multiplicative_smt_fit$residuals, ylab = "residual", main = "승법모형의 예측오차") ; abline(h = 0)
+acf(winters_multiplicative_smt_fit$residuals, main = "Residual ACF")
+t.test(winters_multiplicative_smt_fit$residuals, mu = 0)
+```
+
+```{r}
+## (f) - Simple Exponential Smoothing model
+z <- scan(glue(dataset_dir, "/stationery.txt"))
+stationery <- ts(z, frequency = 7)
+n = length(stationery) ; t = seq(1, n, 1) ; n
+
+plot(stationery, ylab = "Stationery", xlab = "Week", lty = 1, col = "black",
+     main = glue("일별 문구류 판매액(단위 : 천원) 시각화"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+simp_exp_smt_weight_sel = exp_weight_sel(w_vec, stationery, "simple_exp_smt", l = 1) 
+w_opt = simp_exp_smt_weight_sel
+
+simple_exp_smt_fit = simple_exp_smt(stationery, w = w_opt, l = 1, init_val = stationery[1])
+
+simple_exp_smt_fit$MSE
+simple_exp_smt_fit$MAE
+simple_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(simple_exp_smt_fit$Z_hat_l,
+               start = start(stationery), 
+               frequency = frequency(stationery))
+
+plot(stationery, ylab = "stationery", xlab = "week", lty = 1, col = "black",
+     main = glue("일별 문구류 판매액(단위 : 천원)과 단순지수평활값 : alpha = {w_opt}"))
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Stationery", "Simple"))
+
+ts.plot(simple_exp_smt_fit$residual_l, ylab = "residual", main = "단순지수모형의 예측오차") ; abline(h = 0)
+acf(simple_exp_smt_fit$residual_l, main = "Residual ACF")
+t.test(simple_exp_smt_fit$residual_l, mu = 0)
+```
+
+```{r}
+## (f) - Double Exponential Smoothing model
+z <- scan(glue(dataset_dir, "/stationery.txt"))
+stationery <- ts(z, frequency = 7)
+n = length(stationery) ; t = seq(1, n, 1) ; n
+
+plot(stationery, ylab = "Stationery", xlab = "Week", lty = 1, col = "black",
+     main = glue("일별 문구류 판매액(단위 : 천원) 시각화"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, stationery, "double_exp_smt", l = 1) 
+w_opt = doub_exp_smt_weight_sel
+
+double_exp_smt_fit = double_exp_smt(stationery, w = w_opt, l = 1)
+
+double_exp_smt_fit$MSE
+double_exp_smt_fit$MAE
+double_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(double_exp_smt_fit$Z_hat_l,
+               start = start(stationery), 
+               frequency = frequency(stationery))
+
+plot(stationery, ylab = "stationery", xlab = "week", lty = 1, col = "black",
+     main = glue("일별 문구류 판매액(단위 : 천원)과 이중지수평활값 : alpha = beta = {w_opt}"))
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Stationery", "Simple"))
+
+ts.plot(double_exp_smt_fit$residual_l, ylab = "residual", main = "이중지수모형의 예측오차") ; abline(h = 0)
+acf(double_exp_smt_fit$residual_l, main = "Residual ACF")
+t.test(double_exp_smt_fit$residual_l, mu = 0)
+```
+
+```{r}
+## (f) - Triple Exponential Smoothing model
+z <- scan(glue(dataset_dir, "/stationery.txt"))
+stationery <- ts(z, frequency = 7)
+n = length(stationery) ; t = seq(1, n, 1) ; n
+
+plot(stationery, ylab = "Stationery", xlab = "Week", lty = 1, col = "black",
+     main = glue("일별 문구류 판매액(단위 : 천원) 시각화"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+tri_exp_smt_weight_sel = exp_weight_sel(w_vec, stationery, "triple_exp_smt", l = 1) 
+w_opt = tri_exp_smt_weight_sel
+
+triple_exp_smt_fit = triple_exp_smt(stationery, w = w_opt, l = 1)
+
+triple_exp_smt_fit$MSE
+triple_exp_smt_fit$MAE
+triple_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(triple_exp_smt_fit$Z_hat_l,
+               start = start(stationery), 
+               frequency = frequency(stationery))
+
+plot(stationery, ylab = "stationery", xlab = "week", lty = 1, col = "black",
+     main = glue("일별 문구류 판매액(단위 : 천원)과 삼중지수평활값 : alpha = beta = gamma = {w_opt}"))
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Stationery", "Simple"))
+
+ts.plot(triple_exp_smt_fit$residual_l, ylab = "residual", main = "이중지수모형의 예측오차") ; abline(h = 0)
+acf(triple_exp_smt_fit$residual_l, main = "Residual ACF")
+t.test(triple_exp_smt_fit$residual_l, mu = 0)
+```
+
+```{r}
+## (g) - Double Exponential Smoothing model
+z <- scan(glue(dataset_dir, "/book.txt"))
+book <- ts(z, frequency = 7)
+n = length(book) ; t = seq(1, n, 1) ; n
+
+plot(book, ylab = "Book", xlab = "Week", lty = 1, col = "black",
+     main = glue("일별 베스트셀러 판매부수(단위 : 권) 시각화"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, book, "double_exp_smt", l = 1) 
+w_opt = doub_exp_smt_weight_sel
+
+double_exp_smt_fit = double_exp_smt(book, w = w_opt, l = 1)
+
+double_exp_smt_fit$MSE
+double_exp_smt_fit$MAE
+double_exp_smt_fit$MAPE
+
+z_hat_ts <- ts(double_exp_smt_fit$Z_hat_l,
+               start = start(book), 
+               frequency = frequency(book))
+
+plot(book, ylab = "book", xlab = "week", lty = 1, col = "black",
+     main = glue("일별 베스트셀러 판매부수(단위 : 권)와 이중지수평활값 : alpha = beta = {w_opt}"))
+lines(z_hat_ts, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c("black", "red"), c("Stationery", "Simple"))
+
+ts.plot(double_exp_smt_fit$residual_l, ylab = "residual", main = "이중지수모형의 예측오차") ; abline(h = 0)
+acf(double_exp_smt_fit$residual_l, main = "Residual ACF")
+t.test(double_exp_smt_fit$residual_l, mu = 0)
+```
