@@ -107,7 +107,7 @@ exp_weight_sel = function(w_vec, dataset, function_name, l){
   m = length(w_vec) ; MSE_vec = c(rep(0, m))
   if (function_name == "simple_exp_smt"){
     for (i in 1:m){
-      simp_exp_temp = simple_exp_smt(dataset, w_vec[i], mean(dataset), l)
+      simp_exp_temp = simple_exp_smt(dataset, w_vec[i], dataset[1], l)
       MSE_vec[i] = simp_exp_temp$MSE
     }
   }else if(function_name == "double_exp_smt"){

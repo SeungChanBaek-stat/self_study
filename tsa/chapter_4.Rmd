@@ -1,0 +1,467 @@
+---
+title: "시계열분석 4장"
+output: html_document
+date: "2025-06-10"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glue)
+list.files("../adv_reg/functions")
+dir = getwd() ; mother_dir = dirname(dir)
+dataset_dir = glue(dir, "/datasets", sep = "")
+```
+
+```{r}
+reg_function_dir = glue(mother_dir, "/adv_reg/functions")
+source(glue(reg_function_dir, "/mult_reg.R", sep = ""), echo = F)
+source(glue(reg_function_dir, "/reg_diagnostics.R", sep = ""), echo = F)
+
+tsa_function_dir = glue(mother_dir, "/tsa/functions")
+source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
+```
+
+## 4.1 추세모형에 의한 분해
+
+### 예제 4.1 추세모형에 의한 예측
+
+```{r}
+library(forecast) # library for function auto.arima
+# # install.packages("lubridate")
+# library(lubridate) # library for function smd
+library(glue)
+
+
+z <- scan(glue("{dataset_dir}/food.txt"))
+t <- 1:length(z)
+food <- ts(z, start = c(1981, 1), frequency = 12)
+fit <- lm(food ~ t)
+
+anova(fit) # <표 4-1>
+fit$coefficients
+
+trend <- fit$fitted.values
+ts.plot(food, trend, col = 1:2, lty = 1:2, ylab = "food", xlab = "time",
+        main = "그림 4-1 원시계열과 분해법에 의한 추세성분")
+legend("topleft", lty = 1:2, col = 1:2, c("원시계열", "추세성분"))
+
+adjtrend = food/trend
+adjtrend_lmfit = lm(adjtrend ~ 0 + t)
+anova(adjtrend_lmfit)
+
+y = factor(cycle(adjtrend))
+fit1 <- auto.arima(adjtrend, max.p = 2, xreg = model.matrix(~ 0 + y)[,-12],
+                   seasonal = F, max.d = 0, max.q = 0)
+fit1 # <표 4-2>
+seasonal = fit1$fitted
+pred = trend*seasonal
+irregular = food/pred
+
+ts.plot(seasonal, main = "그림 4-2 분해법에 의한 계절성분")
+ts.plot(irregular, main = "그림 4-3 분해법에 의한 불규칙성분") ; abline(h = 0)
+acf(irregular, main = "불규칙성분의 ACF")
+ts.plot(food, pred, lty = 1:2, ylab = "food", col = c("blue", "red"),
+        main = "그림 4-4 원시계열과 예측값")
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("원시계열", "예측값"))
+
+date <- ymd("810101") + months(1:length(food) - 1)
+table4 <- data.frame(date, food, trend, seasonal, irregular)
+table4 # <표 4-3>
+
+fit1$coef
+```
+## 4.2 이동평균법에 의한 분해
+
+### 예제 4.2 단순이동평균 예제
+
+```{r}
+## Example 4.2 이동평균법
+library(forecast) # library for function auto.arima
+library(lubridate) # library for function smd
+library(glue)
+
+z <- scan(glue("{dataset_dir}/mindex.txt"))
+index <- ts(z, start = c(1986, 1), frequency = 12)
+
+m3 <- ma(mindex, 3) ; m3 # 3항 이동평균값
+m7 <- ma(mindex, 7) ; m7 # 7항 이동평균값
+
+plot(index, lty = 1, main = "그림 4-5 중간재 출하지수와 이동평균 m = 3")
+lines(m3, lwd = 1, col = "red", lty = 2)
+legend("topleft", lty = 1:2, col = c(1, "red"), c("Index", "MA3"))
+
+plot(index, lty = 1, main = "그림 4-6 중간재 출하지수와 이동평균 m = 7")
+lines(m7, lwd = 1, col = "blue", lty = 2)
+legend("topleft", lty = 1:2, col = c(1, "blue"), c("Index", "MA7"))
+```
+
+### 예제 4.3 이동평균법을 이용한 계절조정
+
+```{r}
+## Example 4.3 : 이동평균법을 이용한 계절조정
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/food.txt"))
+food <- ts(z, start = c(1981, 1), frequency = 12)
+m = decompose(food, type = c("additive"))
+trend = trendcycle(m)
+seasonal = seasonal(m)
+irregular = remainder(m)
+adjseasonal = food - seasonal
+
+ts.plot(food, trend, ylab = "food", lty = 1:2, col = c("blue", "red"),
+        main = "그림 4-7 원시계열과 추세•순환 성분")
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("원시계열", "추세•순환"))
+
+ts.plot(food, seasonal, ylab = "food", lty = 1:2, col = c("blue", "red"),
+        main = "그림 4-8 원시계열과 계절 성분")
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("원시계열", "계절성분"))
+
+ts.plot(food, irregular, ylab = "food", lty = 1:2, col = c("blue", "red"),
+        main = "그림 4-9 원시계열과 불규칙성분")
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("원시계열", "불규칙성분"))
+
+ts.plot(food, adjseasonal, ylab = "food", lty = 1:2, col = c("blue", "red"),
+        main = "그림 4-10 원시계열과 계절조정")
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("원시계열", "계절조정"))
+
+## function stl 과 seasadj를 사용해도 동일한 결과
+food.stl = stl(food, "periodic")
+plot(food.stl)
+food.sa <- seasadj(food.stl)
+ts.plot(food, food.sa, ylab = "food", lty = 1:2, col = c("blue", "red"),
+        main = "그림 4-10 원시계열과 계절조정")
+legend("topleft", lty = 1:2, col = c("blue", "red"), c("원시계열", "계절조정"))
+```
+
+## 연습문제
+
+### 4.1
+
+```{r}
+library(forecast) # library for function auto.arima
+library(glue)
+
+simple_ma_pred = function(dataset, m = 3){
+  n = length(dataset)
+  pred_vec = c(rep(0, n))
+  
+  for (i in 1:(n-m)){
+    M_i = dataset[i]
+    for (j in 1:(m-1)){
+      M_i = M_i + dataset[i+j]
+    }
+    M_i = M_i / m
+    pred_vec[m+i] = M_i
+  }
+  residual_vec = dataset - pred_vec
+  MSE = sum((residual_vec[-(1:m)])^2) / (n - m)
+  
+  return(list(pred_vec = pred_vec, residual_vec = residual_vec, MSE = MSE))
+}
+
+
+z <- scan(glue("{dataset_dir}/food.txt"))
+t <- 1:length(z)
+food <- ts(z, start = c(1981, 1), frequency = 12)
+lm_fit <- lm(food ~ t)
+n = length(z)
+
+ma3_fit <- simple_ma_pred(food, m = 3)
+ma7_fit <- simple_ma_pred(food, m = 7)
+ma12_fit <- simple_ma_pred(food, m = 12)
+
+MSE_lm = sum((lm_fit$residuals[-(1:3)])^2) / (n - 3)
+MSE_ma3 = ma3_fit$MSE
+print(glue("MSE_lm = {MSE_lm}, MSE_ma3 = {MSE_ma3}"))
+
+MSE_lm = sum((lm_fit$residuals[-(1:7)])^2) / (n - 7)
+MSE_ma7 = ma7_fit$MSE
+print(glue("MSE_lm = {MSE_lm}, MSE_ma7 = {MSE_ma7}"))
+
+MSE_lm = sum((lm_fit$residuals[-(1:12)])^2) / (n - 12)
+MSE_ma12 = ma12_fit$MSE
+print(glue("MSE_lm = {MSE_lm}, MSE_ma12 = {MSE_ma12}"))
+
+plot(t, food, xlab = "year", ylab = "food", lty = 1, col = "black", cex = 0.5,
+     main = "음식물 출하지수 자료 예측")
+lines(lm_fit$fitted.values, col = "blue", lty = 2, lwd = 2.5)
+lines(ma3_fit$pred_vec, col = "lightblue", lty = 3, lwd = 2.5)
+lines(ma7_fit$pred_vec, col = "lightgreen", lty = 4, lwd = 2.5)
+lines(ma12_fit$pred_vec, col = "red", lty = 5, lwd = 2.5)
+legend("topleft", legend = c("food", "Linear", "MA-3", "MA-7", "MA-12"),
+       lty = 1:5, col = c("black", "blue", "lightblue", "lightgreen", "red"))
+```
+
+### 4.3
+
+```{r}
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/food.txt"))
+t = 1:length(z)
+food <- ts(z, start = c(1981, 1), frequency = 12)
+m1 = decompose(food, type = c("additive"))
+trend_add = trendcycle(m1)
+seasonal_add = seasonal(m1)
+irregular_add = remainder(m1)
+adjseasonal_add = food - seasonal_add
+
+m2 = decompose(food, type = c("multiplicative"))
+# trend_mult = trendcycle(m2)
+# seasonal_mult = seasonal(m2)
+# irregular_mult = remainder(m2)
+# adjseasonal_mult = food/seasonal_mult
+
+trend_mult = m2$trend
+seasonal_mult = m2$seasonal
+irregular_mult = m2$random
+adjseasonal_mult = food/seasonal_mult
+
+ts.plot(food, trend_add, trend_mult, ylab = "food", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 추세•순환 성분(가법), 추세•순환 성분(승법) ")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "추세•순환(가법)", "추세•순환(승법)"))
+
+ts.plot(food, seasonal_add, seasonal_mult, ylab = "food", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절 성분(가법), 계절 성분(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절성분(가법)", "계절 성분(승법)"))
+
+ts.plot(food, irregular_add, irregular_mult, ylab = "food", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 불규칙성분(가법), 불규칙성분(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "불규칙성분(가법)", "불규칙성분(승법)"))
+
+ts.plot(food, adjseasonal_add, adjseasonal_mult, ylab = "food", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절조정(가법), 계절조정(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절조정(가법)", "계절조정(승법)"))
+
+ts.plot(seasonal_mult, xlab = "year", ylab = "seasonal_mult", lty = 3, col = "green")
+ts.plot(irregular_mult, xlab = "year", ylab = "irregular_mult", lty = 3, col = "green")
+```
+
+### 4.4
+
+#### (a)
+```{r}
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/build.txt"))
+t = 1:length(z)
+build <- ts(z, start = c(1981, 1), frequency = 12)
+m1 = decompose(build, type = c("additive"))
+trend_add = trendcycle(m1)
+seasonal_add = seasonal(m1)
+irregular_add = remainder(m1)
+adjseasonal_add = build - seasonal_add
+
+m2 = decompose(build, type = c("multiplicative"))
+
+trend_mult = m2$trend
+seasonal_mult = m2$seasonal
+irregular_mult = m2$random
+adjseasonal_mult = build/seasonal_mult
+
+ts.plot(build, adjseasonal_add, adjseasonal_mult, ylab = "build", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절조정(가법), 계절조정(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절조정(가법)", "계절조정(승법)"))
+```
+
+#### (b)
+
+```{r}
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/export.txt"))
+t = 1:length(z)
+export <- ts(z, start = c(1981, 1), frequency = 12)
+m1 = decompose(export, type = c("additive"))
+trend_add = trendcycle(m1)
+seasonal_add = seasonal(m1)
+irregular_add = remainder(m1)
+adjseasonal_add = export - seasonal_add
+
+m2 = decompose(export, type = c("multiplicative"))
+
+trend_mult = m2$trend
+seasonal_mult = m2$seasonal
+irregular_mult = m2$random
+adjseasonal_mult = export/seasonal_mult
+
+ts.plot(export, adjseasonal_add, adjseasonal_mult, ylab = "export", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절조정(가법), 계절조정(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절조정(가법)", "계절조정(승법)"))
+```
+
+#### (c)
+
+```{r}
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/usapass.txt"))
+t = 1:length(z)
+usapass <- ts(z, start = c(1981, 1), frequency = 12)
+m1 = decompose(usapass, type = c("additive"))
+trend_add = trendcycle(m1)
+seasonal_add = seasonal(m1)
+irregular_add = remainder(m1)
+adjseasonal_add = usapass - seasonal_add
+
+m2 = decompose(usapass, type = c("multiplicative"))
+
+trend_mult = m2$trend
+seasonal_mult = m2$seasonal
+irregular_mult = m2$random
+adjseasonal_mult = usapass/seasonal_mult
+
+ts.plot(usapass, adjseasonal_add, adjseasonal_mult, ylab = "usapass", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절조정(가법), 계절조정(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절조정(가법)", "계절조정(승법)"))
+```
+
+#### (d)
+
+```{r}
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/depart.txt"))
+t = 1:length(z)
+depart <- ts(z, start = c(1981, 1), frequency = 12)
+m1 = decompose(depart, type = c("additive"))
+trend_add = trendcycle(m1)
+seasonal_add = seasonal(m1)
+irregular_add = remainder(m1)
+adjseasonal_add = depart - seasonal_add
+
+m2 = decompose(depart, type = c("multiplicative"))
+
+trend_mult = m2$trend
+seasonal_mult = m2$seasonal
+irregular_mult = m2$random
+adjseasonal_mult = depart/seasonal_mult
+
+ts.plot(depart, adjseasonal_add, adjseasonal_mult, ylab = "depart", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절조정(가법), 계절조정(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절조정(가법)", "계절조정(승법)"))
+```
+
+#### (e)
+
+```{r}
+library(forecast) # library for function trendcycle & seasonal
+
+z <- scan(glue("{dataset_dir}/koreapass.txt"))
+t = 1:length(z)
+koreapass <- ts(z, start = c(1981, 1), frequency = 12)
+m1 = decompose(koreapass, type = c("additive"))
+trend_add = trendcycle(m1)
+seasonal_add = seasonal(m1)
+irregular_add = remainder(m1)
+adjseasonal_add = koreapass - seasonal_add
+
+m2 = decompose(koreapass, type = c("multiplicative"))
+
+trend_mult = m2$trend
+seasonal_mult = m2$seasonal
+irregular_mult = m2$random
+adjseasonal_mult = koreapass/seasonal_mult
+
+ts.plot(koreapass, adjseasonal_add, adjseasonal_mult, ylab = "koreapass", lty = 1:3, col = c("blue", "red", "green"),
+        main = "원시계열과 계절조정(가법), 계절조정(승법)")
+legend("topleft", lty = 1:3, col = c("blue", "red", "green"), c("원시계열", "계절조정(가법)", "계절조정(승법)"))
+```
+
+### 4.5
+
+#### (a)
+
+```{r}
+source(glue(tsa_function_dir, "/ex4_5.R", sep = ""), echo = F)
+library(forecast)
+z <- scan(glue("{dataset_dir}/build.txt"))
+t = 1:length(z) ; n = length(z)
+build <- ts(z, start = c(1981, 1), frequency = 12)
+
+ex4_5_cal(build, type_cal = c("additive"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, build, "double_exp_smt", l = 1) 
+w_opt = doub_exp_smt_weight_sel
+double_exp_smt_fit = double_exp_smt(build, w = w_opt, l = 1)
+MSE_doub_exp = double_exp_smt_fit$MSE
+print(glue("MSE_doub_exp = {MSE_doub_exp}"))
+```
+
+#### (b)
+
+```{r}
+z <- scan(glue("{dataset_dir}/export.txt"))
+t = 1:length(z) ; n = length(z)
+export <- ts(z, start = c(1984, 1), frequency = 12)
+
+ex4_5_cal(export, type_cal = c("multiplicative"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, export, "double_exp_smt", l = 1)
+w_opt = doub_exp_smt_weight_sel
+double_exp_smt_fit = double_exp_smt(export, w = w_opt, l = 1)
+MSE_doub_exp = double_exp_smt_fit$MSE
+print(glue("MSE_doub_exp = {MSE_doub_exp}"))
+```
+
+#### (c)
+
+```{r}
+z <- scan(glue("{dataset_dir}/usapass.txt"))
+t = 1:length(z) ; n = length(z)
+usapass <- ts(z, start = c(1984, 1), frequency = 12)
+
+ex4_5_cal(usapass, type_cal = c("multiplicative"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, usapass, "double_exp_smt", l = 1)
+w_opt = doub_exp_smt_weight_sel
+double_exp_smt_fit = double_exp_smt(usapass, w = w_opt, l = 1)
+MSE_doub_exp = double_exp_smt_fit$MSE
+print(glue("MSE_doub_exp = {MSE_doub_exp}"))
+```
+
+#### (d)
+
+```{r}
+source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
+z <- scan(glue("{dataset_dir}/depart.txt"))
+t = 1:length(z) ; n = length(z)
+depart <- ts(z, start = c(1984, 1), frequency = 12)
+
+ex4_5_cal(depart, type_cal = c("multiplicative"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, depart, "double_exp_smt", l = 1)
+w_opt = doub_exp_smt_weight_sel
+double_exp_smt_fit = double_exp_smt(depart, w = w_opt, l = 1)
+MSE_doub_exp = double_exp_smt_fit$MSE
+print(glue("MSE_doub_exp = {MSE_doub_exp}"))
+```
+
+#### (e)
+
+```{r}
+z <- scan(glue("{dataset_dir}/koreapass.txt"))
+t = 1:length(z) ; n = length(z)
+koreapass <- ts(z, start = c(1984, 1), frequency = 12)
+
+ex4_5_cal(koreapass, type_cal = c("multiplicative"))
+
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, koreapass, "double_exp_smt", l = 1)
+w_opt = doub_exp_smt_weight_sel
+double_exp_smt_fit = double_exp_smt(koreapass, w = w_opt, l = 1)
+MSE_doub_exp = double_exp_smt_fit$MSE
+print(glue("MSE_doub_exp = {MSE_doub_exp}"))
+```

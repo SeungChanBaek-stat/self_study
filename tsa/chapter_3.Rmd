@@ -329,6 +329,13 @@ legend("topleft", lty = 1:2, col = c("blue", "red"), c("Build", "multiplicative"
 MSE = sum(winters_multiplicative_smt_fit$residuals^2) / n
 print(glue("MSE = {MSE}"))
 
+w_vec = seq(0.01, 1, by = 0.01)
+doub_exp_smt_weight_sel = exp_weight_sel(w_vec, build, "double_exp_smt", l = 1) 
+w_opt = doub_exp_smt_weight_sel
+double_exp_smt_fit = double_exp_smt(build, w = w_opt, l = 1)
+MSE_doub_exp = double_exp_smt_fit$MSE
+print(glue("MSE_doub_exp = {MSE_doub_exp}"))
+
 ts.plot(winters_multiplicative_smt_fit$residuals, ylab = "residual", main = "승법모형의 예측오차") ; abline(h = 0)
 acf(winters_multiplicative_smt_fit$residuals, main = "Residual ACF")
 t.test(winters_multiplicative_smt_fit$residuals, mu = 0)
