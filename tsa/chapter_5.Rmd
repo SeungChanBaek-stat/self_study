@@ -104,3 +104,151 @@ lag.plot(z, lags=2, main="그림 5-6 & 5-7 Lag Plot")
 # 레이아웃 원래대로 돌려놓기
 par(mfrow=c(1,1))
 ```
+
+## 5.4 부분자기상관함수
+
+### 예제 5.2 표본부분자기상관계수(SPACF)의 의미
+
+```{r}
+## Example 5.2
+library(astsa) # library for function arima.sim
+plot(arima.sim(list(order = c(0,0,1), ma = .8), n = 100), ylab = "x",
+     main = (expression(MA(1) ~~~ theta == .8))) ; abline(h = 0) # 그림 5-8
+z <- arima.sim(list(order = c(0,0,1), ma = .8), n = 100);
+pacf(z, lag.max = 24, main = "그림 5-9 MA(1)의 PACF : theta = 0.8")
+
+# 그림 5-10
+plot(as.numeric(z - 0.467 * lag(z, - 1)), as.numeric(lag(z, -2) - 0.467* lag(z, -1)),
+     xlab = "z(t) - 0.467*z(t+1)", ylab = "z(t+2) - 0.467*z(t+1)") ; abline(h = 0, v = 0)
+```
+
+## 연습문제
+
+### 5.2
+
+```{r}
+gamma_hat_k = function(dataset, k){
+  z_bar = mean(dataset) ; n = length(dataset)
+  res = 0
+  for (i in 1:(n-k)){
+    z_t_z_bar = dataset[i] - z_bar
+    z_tk_z_bar = dataset[i+k] - z_bar
+    res = res + z_t_z_bar * z_tk_z_bar
+  }
+  res = res / n
+  return(res)
+}
+
+z = c(7, 6, 5, 8, 9, 4, 5, 5, 4, 6, 7, 8, 5, 6, 5)
+z_ts = ts(z)
+gamma_hat_0 = gamma_hat_k(z_ts, k = 0)
+
+SACF_1 = gamma_hat_k(z_ts, k = 1) / gamma_hat_0
+SACF_2 = gamma_hat_k(z_ts, k = 2) / gamma_hat_0
+SACF_3 = gamma_hat_k(z_ts, k = 3) / gamma_hat_0
+
+durbin_levinson = function(dataset, K){
+  library(glue)
+  SACF = c(rep(0,K)) ; SPACF = c(rep(0, K)) ; rho_hat = c(rep(0, K))
+  z_ts = ts(dataset)
+  
+  gamma_hat_0 = gamma_hat_k(z_ts, k = 0)
+  for (i in 1:K){
+    rho_hat[i] = gamma_hat_k(z_ts, k = i) / gamma_hat_0
+    SACF[i] = rho_hat[i]
+    print(glue("SACF_{i} = {rho_hat[i]}"))
+  }
+  
+  phi_hat_mat = matrix(NA, nrow = K, ncol = K)
+  
+  for(i in 1:K){
+    if(i == 1){
+      phi_hat_mat[i,i] = rho_hat[i]
+    } else {
+      # 1) 대각성분 phi[i,i]
+      num <- rho_hat[i] - sum(phi_hat_mat[i-1,1:(i-1)] * rho_hat[i - (1:(i-1))])
+      denom <- 1 - sum(phi_hat_mat[i-1,1:(i-1)] * rho_hat[1:(i-1)])
+      phi_hat_mat[i,i] <- num/denom
+
+      # 2) 비대각성분 phi[i,1:(i-1)]
+      phi_hat_mat[i,1:(i-1)] <- phi_hat_mat[i-1,1:(i-1)] - phi_hat_mat[i,i] * rev(phi_hat_mat[i-1,1:(i-1)])
+    }
+    SPACF[i] <- phi_hat_mat[i,i]
+    print(glue("SPACF_{i} = {SPACF[i]}"))
+  }
+  # for (i in 1:K){
+  #   for (j in 1:K){
+  #     if ((i == 1) & (j == 1)){
+  #       phi_hat_mat[i,j] = rho_hat[i]
+  #       SPACF[i] = phi_hat_mat[i,j]
+  #     }else if(i == j){
+  #       l = 1 ; denum_sum = 0 ; denom_sum = 0
+  #       while(l <= (i-1)){
+  #         denum_sum = denum_sum + phi_hat_mat[(i-1), l] * rho_hat[i-l]
+  #         denom_sum = denom_sum + phi_hat_mat[(i-1), l] * rho_hat[l]
+  #         l = l + 1
+  #       }
+  #       denum = rho_hat[i] - denum_sum
+  #       denom = 1 - denom_sum
+  #       phi_hat_mat[i,j] = denum / denom
+  #       print(phi_hat_mat)
+  #     }else if(i > j){
+  #       l = 1
+  #       while(l <= (i-1)){
+  #         phi_hat_mat[i,l] = phi_hat_mat[i-1,l] - phi_hat_mat[i,i] * phi_hat_mat[(i-1), i-l]
+  #         l = l + 1
+  #       }
+  #       print(phi_hat_mat)
+  #     }
+  #   }
+  #   SPACF[i] = phi_hat_mat[i,i]
+  #   print(glue("SPACF_{i} = {SPACF[i]}"))
+  # }
+  return(list(SACF = SACF, SPACF = SPACF, phi_hat_mat = phi_hat_mat))
+}
+
+dl_res = durbin_levinson(z_ts, K = 3)
+pacf_res = pacf(z_ts, lag.max = 24, main = "시계열 PACF")
+```
+
+### 5.3
+
+```{r}
+z <- scan(glue("{dataset_dir}/ex5_3.txt"))
+t <- 1:length(z)
+ex5_3 <- ts(z)
+```
+
+#### (a), (b)
+
+```{r}
+ts.plot(ex5_3)
+```
+
+#### (c)
+
+```{r}
+dev.new() # device for graphics
+lag1.plot(ex5_3,1)
+```
+
+#### (d)
+
+```{r}
+acf(ex5_3, lag.max = 24, main = "ex5_3 ACF")
+dl_ex5_3 = durbin_levinson(ex5_3, K = 10)
+```
+
+#### (e)
+
+```{r}
+dev.new() # device for graphics
+lag1.plot(ex5_3,2)
+```
+
+#### (f)
+
+```{r}
+pacf(ex5_3, lag.max = 24, main = "ex5_3 PACF")
+dl_ex5_3 = durbin_levinson(ex5_3, K = 10)
+```
