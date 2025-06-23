@@ -34,7 +34,7 @@ source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
 ```{r}
 library(forecast) # library for function auto.arima
 # # install.packages("lubridate")
-# library(lubridate) # library for function smd
+library(lubridate) # library for function smd
 library(glue)
 
 
@@ -87,16 +87,16 @@ library(lubridate) # library for function smd
 library(glue)
 
 z <- scan(glue("{dataset_dir}/mindex.txt"))
-index <- ts(z, start = c(1986, 1), frequency = 12)
+mindex <- ts(z, start = c(1986, 1), frequency = 12)
 
 m3 <- ma(mindex, 3) ; m3 # 3항 이동평균값
 m7 <- ma(mindex, 7) ; m7 # 7항 이동평균값
 
-plot(index, lty = 1, main = "그림 4-5 중간재 출하지수와 이동평균 m = 3")
+plot(mindex, lty = 1, main = "그림 4-5 중간재 출하지수와 이동평균 m = 3")
 lines(m3, lwd = 1, col = "red", lty = 2)
 legend("topleft", lty = 1:2, col = c(1, "red"), c("Index", "MA3"))
 
-plot(index, lty = 1, main = "그림 4-6 중간재 출하지수와 이동평균 m = 7")
+plot(mindex, lty = 1, main = "그림 4-6 중간재 출하지수와 이동평균 m = 7")
 lines(m7, lwd = 1, col = "blue", lty = 2)
 legend("topleft", lty = 1:2, col = c(1, "blue"), c("Index", "MA7"))
 ```

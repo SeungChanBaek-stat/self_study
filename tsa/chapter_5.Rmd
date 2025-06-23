@@ -252,3 +252,144 @@ lag1.plot(ex5_3,2)
 pacf(ex5_3, lag.max = 24, main = "ex5_3 PACF")
 dl_ex5_3 = durbin_levinson(ex5_3, K = 10)
 ```
+
+### 5.4
+
+```{r}
+z <- scan(glue("{dataset_dir}/ex5_4.txt"))
+t <- 1:length(z)
+ex5_4 <- ts(z)
+```
+
+#### (a), (b)
+
+```{r}
+ts.plot(ex5_4)
+```
+
+#### (c)
+
+```{r}
+dev.new() # device for graphics
+lag1.plot(ex5_4,1)
+```
+
+#### (d)
+
+```{r}
+acf(ex5_4, lag.max = 24, main = "ex5_4 ACF")
+dl_ex5_4 = durbin_levinson(ex5_4, K = 10)
+```
+
+#### (e)
+
+```{r}
+dev.new() # device for graphics
+lag1.plot(ex5_4,2)
+```
+
+#### (f)
+
+```{r}
+pacf(ex5_4, lag.max = 24, main = "ex5_4 PACF")
+dl_ex5_4 = durbin_levinson(ex5_4, K = 10)
+```
+
+### 5.5
+
+```{r}
+set.seed(7714)
+n = 100
+e_t = rnorm((n+1), 0, 1)
+Z_t = c(rep(1.0, (n+1)))
+for (i in 1:(n+1)){
+  if (i == 1){
+    Z_t[i] = 10
+  }else{
+    Z_t[i] = 1.0 + (0.9 * Z_t[i-1]) + e_t[i]
+  }
+}
+
+Z_t
+
+Z <- as.numeric(arima.sim(n = n,
+                          model = list(ar = 0.9, intercept = 1),
+                          innov = rnorm(n),
+                          n.start = 1, start.innov = rnorm(1), init = 10))
+
+Z
+
+n  <- 100
+eps <- rnorm(n)      # ε₁,…,ε₁₀₀
+Z_test  <- numeric(n + 1) # Z₀,…,Z₁₀₀
+Z_test[1] <- 10           # Z₀ 설정
+
+for (t in 1:n) {
+  Z_test[t + 1] <- 1 + 0.9 * Z_test[t] + eps[t]
+}
+
+Z_test
+
+
+Z_t = ts(Z_t) ; Z = ts(Z) ; Z_test = ts(Z_test)
+```
+
+```{r}
+ts.plot(Z_t)
+ts.plot(Z)
+ts.plot(Z_test)
+```
+
+#### (a)
+
+```{r}
+ts.plot(Z_t)
+```
+
+#### (b)
+
+```{r}
+dl_Z_t = durbin_levinson(Z_t, K = 10)
+acf(Z_t, main = "Z_t ACF")
+```
+
+#### (c)
+
+```{r}
+pacf(Z_t, main = "Z_t PACF")
+```
+
+#### (d)
+
+```{r}
+dev.new() # device for graphics
+lag1.plot(Z_t,1)
+```
+
+#### (e)
+
+```{r}
+dev.new() # device for graphics
+lag1.plot(Z_t,2)
+```
+
+```{r}
+x1 = Z_t[1:n]
+y1 = Z_t[2:(n+1)]
+
+x1
+y1
+
+lm.fit = lm(y1 ~ x1)
+lm.fit$coefficients
+
+
+x2 = Z_t[1:(n-1)]
+y2 = Z_t[3:(n+1)]
+
+x2
+y2
+
+lm.fit2 = lm(y2 ~ x2)
+lm.fit2$coefficients
+```
