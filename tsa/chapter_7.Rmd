@@ -1,0 +1,498 @@
+---
+title: "시계열분석 7장"
+output: html_document
+date: "2025-06-30"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glue)
+list.files("../adv_reg/functions")
+dir = getwd() ; mother_dir = dirname(dir)
+dataset_dir = glue(dir, "/datasets", sep = "")
+```
+
+```{r}
+reg_function_dir = glue(mother_dir, "/adv_reg/functions")
+source(glue(reg_function_dir, "/mult_reg.R", sep = ""), echo = F)
+source(glue(reg_function_dir, "/reg_diagnostics.R", sep = ""), echo = F)
+
+tsa_function_dir = glue(mother_dir, "/tsa/functions")
+source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
+source(glue(tsa_function_dir, "/acf_pacf.R", sep = ""), echo = F)
+```
+
+## 7.1 비정상시계열의 정상화
+
+```{r}
+## Example7.1 : 비정상 확률과정
+library(glue)
+z = scan(glue(dataset_dir, "/depart.txt"))
+dept = ts(z, start = c(1984, 1), frequency = 12)
+ldept = log(dept)
+dif_1 = diff(ldept, lag = 1)
+dif_12 = diff(ldept, lag = 12)
+dif_112 = diff(dif_1, lag = 12) # 1차 차분을 먼저하고 나서 계절차분(주기 = 12)
+
+ts.plot(dept, ylab = "depart", main = "그림 7-1 백화점 월별 매출액")
+ts.plot(ldept, ylab = "ln depart", main = "그림 7-2 로그 매출액")
+ts.plot(dif_1, ylab = "diff1", main = "그림 7-5 1차 차분된 로그 매출액") ; abline(h = 0)
+ts.plot(dif_12, ylab = "diff12", main = "계절차분된 로그 매출액")
+ts.plot(dif_112, ylab = "diff1&12", main = "그림 7-6 계절차분된 로그 매출액") ; abline(h = 0)
+```
+
+```{r}
+## Figure 7.3 : 이자율
+z = scan(glue(dataset_dir, "/interest.txt"))
+interest = ts(z, start = c(1982, 4), frequency = 12)
+ts.plot(interest, ylab = "interest", main = "그림 7-3 이자율"); abline(v = 1992)
+```
+
+## 7.2 자기회귀누적이동평균과정
+
+```{r}
+## Figure 7.4 : Random Walk Process
+set.seed(12456)
+z = ts(cumsum(rnorm(100, .01, 1)))
+difz = diff(z, lag = 1)
+
+par(mfrow = c(1,2))
+# 그림 7-4
+ts.plot(z, ylab = 'z', main = "Random Walk")
+ts.plot(difz, ylab = 'diff z', main = "1차 차분된 Random Walk")
+```
+
+```{r}
+## Figure 7.7, 7.8, 7.9, 7.10 : ARMA(1,1) 과정
+set.seed(16732)
+z = arima.sim(n = 300, list(order = c(1,1,1), ar = 0.8, ma = -0.5), rand.gen = rnorm)
+
+# 그림 7-7, 7-8, 7-9, 7-10
+ts.plot(z, ylab = "z",
+        main = (expression(ARIMA(1,1,1)~~~~~~~~phi==0.8~~theta==0.5)))
+acf(z, lag.max = 24, main = "그림 7-8 ARIMA(1,1,1) 과정의 SACF")
+ts.plot(diff(z), main = "그림 7-9 ARMA(1,1) 과정") ; abline(h = 0)
+acf(diff(z), lag.max = 24, main = "그림 7-10 ARMA(1,1) 과정의 SACF")
+```
+
+```{r}
+# arima.sim 대신 자료를 다음과 같이 생성할 수도 있음
+set.seed(16732)
+t = 1:300 ; z = rep(0, 302) ; a1 = rnorm(1)
+for (i in 1:300){
+  a = rnorm(1)
+  z[i+2] = 1.8*z[i+1] - 0.8*z[i] + a - 0.5*a1
+  a1 = a1
+}
+z = z[3:302]
+ts.plot(z, ylab = "z",
+        main = (expression(ARIMA(1,1,1)~~~~~~~~phi==0.8~~theta==0.5)))
+acf(z, lag.max = 24, main = "그림 7-8 ARIMA(1,1,1) 과정의 SACF")
+ts.plot(diff(z), main = "그림 7-9 ARMA(1,1) 과정") ; abline(h = 0)
+acf(diff(z), lag.max = 24, main = "그림 7-10 ARMA(1,1) 과정의 SACF")
+```
+
+## 연습문제
+
+### 7.2
+
+#### (a)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/depart.txt"))
+dept = ts(z, start = c(1984, 1), frequency = 12)
+ldept = log(dept)
+diff_12 = diff(ldept, lag = 12)
+
+ts.plot(diff_12, ylab = "diff_12", main = "계절차분된 로그 매출액")
+```
+
+#### (b)
+
+```{r}
+diff_12_1 = diff(diff_12, lag = 1)
+
+ts.plot(diff_12_1, ylab = "diff_12_1", main = "계절차분 & 1차 차분 로그 매출액") ; abline(h = 0)
+ts.plot(dif_112, ylab = "diff1&12", main = "그림 7-6 계절차분된 로그 매출액") ; abline(h = 0)
+```
+
+### 7.3
+
+#### (a)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_3.txt"))
+ex7_3 = ts(z, start = c(1984, 1), frequency = 12)
+ts.plot(ex7_3, ylab = "ex7_3", main = "모의실험 자료")
+```
+
+#### (b)
+
+```{r}
+library(glue)
+diff_ex7_3_1 = diff(ex7_3, lag = 1)
+ts.plot(diff_ex7_3_1, ylab = "diff_ex7_3_1", main = "1차 차분된 모의실험 자료")
+
+diff_ex7_3_1_4 = diff(diff_ex7_3_1, lag = 4)
+ts.plot(diff_ex7_3_1_4, ylab = "diff_ex7_3_1_4", main = "계절(주기=4)차분 & 1차 차분된 모의실험 자료")
+acf(diff_ex7_3_1_4)
+
+dl_diff_ex7_3_1_4 = durbin_levinson(diff_ex7_3_1_4, K = 10)
+```
+
+#### (c)
+
+```{r}
+library(glue)
+diff_ex7_3_4 = diff(ex7_3, lag = 4)
+ts.plot(diff_ex7_3_4, ylab = "diff_ex7_3_4", main = "계절(주기=4)차분된 모의실험 자료")
+acf(diff_ex7_3_4)
+
+dl_diff_ex7_3_4 = durbin_levinson(diff_ex7_3_4, K = 10)
+```
+
+#### (d)
+
+```{r}
+library(glue)
+diff_ex7_3_4 = diff(ex7_3, lag = 4)
+diff_ex7_3_4_1 = diff(diff_ex7_3_4, lag = 1)
+ts.plot(diff_ex7_3_4_1, ylab = "diff_ex7_3_4_1", main = "1차 차분 & 계절(주기=4)차분된 모의실험 자료")
+acf(diff_ex7_3_4_1)
+
+dl_diff_ex7_3_4_1 = durbin_levinson(diff_ex7_3_4_1, K = 10)
+```
+### 7.4
+
+#### (a)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_4.txt"))
+length(z)
+ex7_4 = ts(z, start = c(1984, 1), frequency = 12)
+ts.plot(ex7_4, ylab = "ex7_4", main = "모의실험 자료")
+```
+
+#### (b)
+
+```{r}
+diff_7_4_1 = diff(ex7_4, lag = 1)
+ts.plot(diff_7_4_1, ylab = "diff_7_4_1", main = "1차 차분된 모의실험 자료")
+```
+
+#### (c)
+
+```{r}
+diff_7_4_4 = diff(ex7_4, lag = 4)
+ts.plot(diff_7_4_4, ylab = "diff_7_4_4", main = "계절(주기=4)차분된 모의실험 자료")
+```
+
+#### (d)
+
+```{r}
+diff_7_4_4_1 = diff(diff_7_4_4, lag = 1)
+ts.plot(diff_7_4_4_1, ylab = "diff_7_4_4_1", main = "계절(주기=4)차분 & 1차 차분된 모의실험 자료")
+acf(diff_7_4_4_1)
+
+diff_7_4_1_4 = diff(diff_7_4_1, lag = 4)
+ts.plot(diff_7_4_1_4, ylab = "diff_7_4_1_4", main = "1차 차분 & 계절(주기=4)차분된 모의실험 자료")
+acf(diff_7_4_1_4)
+```
+
+### 7.5
+
+#### (a)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5a.txt"))
+length(z)
+ex7_5a = ts(z)
+ts.plot(ex7_5a, ylab = "ex7_5a", main = "모의실험 자료")
+acf(ex7_5a, lag.max = 24, main = "ex7_5a의 SACF")
+pacf(ex7_5a, lag.max = 12, main = "ex7_5a의 SPACF")
+
+diff_a_1 = diff(ex7_5a, lag = 1)
+ts.plot(diff_a_1, ylab = "diff_a_1", main = "1차 차분된 모의실험 자료")
+acf(diff_a_1, lag.max = 24, main = "1차 차분된 ex7_5a의 SACF")
+pacf(diff_a_1, lag.max = 24, main = "1차 차분된 ex7_5a의 SPACF")
+```
+
+#### (b)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5b.txt"))
+length(z)
+ex7_5b = ts(z)
+ts.plot(ex7_5b, ylab = "ex7_5b", main = "모의실험 자료")
+acf(ex7_5b, lag.max = 24, main = "ex7_5b의 SACF")
+pacf(ex7_5b, lag.max = 12, main = "ex7_5b의 SPACF")
+
+diff_b_1 = diff(ex7_5b, lag = 1)
+ts.plot(diff_b_1, ylab = "diff_b_1", main = "1차 차분된 모의실험 자료")
+acf(diff_b_1, lag.max = 24, main = "1차 차분된 ex7_5b의 SACF")
+pacf(diff_b_1, lag.max = 24, main = "1차 차분된 ex7_5b의 SPACF")
+```
+
+#### (c)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5c.txt"))
+length(z)
+ex7_5c = ts(z)
+ts.plot(ex7_5c, ylab = "ex7_5c", main = "모의실험 자료")
+acf(ex7_5c, lag.max = 24, main = "ex7_5c의 SACF")
+pacf(ex7_5c, lag.max = 12, main = "ex7_5c의 SPACF")
+
+diff_c_1 = diff(ex7_5c, lag = 1)
+ts.plot(diff_c_1, ylab = "diff_c_1", main = "1차 차분된 모의실험 자료")
+acf(diff_c_1, lag.max = 24, main = "1차 차분된 ex7_5c의 SACF")
+pacf(diff_c_1, lag.max = 24, main = "1차 차분된 ex7_5c의 SPACF")
+```
+
+#### (d)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5d.txt"))
+length(z)
+ex7_5d = ts(z)
+ts.plot(ex7_5d, ylab = "ex7_5d", main = "모의실험 자료")
+acf(ex7_5d, lag.max = 24, main = "ex7_5d의 SACF")
+pacf(ex7_5d, lag.max = 12, main = "ex7_5d의 SPACF")
+
+diff_d_1 = diff(ex7_5d, lag = 1)
+ts.plot(diff_d_1, ylab = "diff_d_1", main = "1차 차분된 모의실험 자료")
+acf(diff_d_1, lag.max = 24, main = "1차 차분된 ex7_5d의 SACF")
+pacf(diff_d_1, lag.max = 24, main = "1차 차분된 ex7_5d의 SPACF")
+```
+
+#### (e)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5e.txt"))
+length(z)
+ex7_5e = ts(z)
+ts.plot(ex7_5e, ylab = "ex7_5e", main = "모의실험 자료")
+acf(ex7_5e, lag.max = 24, main = "ex7_5e의 SACF")
+pacf(ex7_5e, lag.max = 12, main = "ex7_5e의 SPACF")
+
+diff_e_1 = diff(ex7_5e, lag = 1)
+ts.plot(diff_e_1, ylab = "diff_e_1", main = "1차 차분된 모의실험 자료")
+acf(diff_e_1, lag.max = 24, main = "1차 차분된 ex7_5e의 SACF")
+pacf(diff_e_1, lag.max = 24, main = "1차 차분된 ex7_5e의 SPACF")
+```
+
+### 7.6
+
+#### (모형1)
+
+```{r}
+set.seed(7714)
+n = 1000
+phi = c(0.8)
+# theta = c(1)
+mu = 0
+
+model = list(order = c(1,1,0), ar = phi)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SPACF")
+```
+
+#### (모형2)
+
+```{r}
+set.seed(7714)
+n = 1000
+# phi = c(0.8)
+theta = c(-0.5)
+mu = 5
+
+model = list(order = c(0,1,1), ma = theta, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = list(order = c(0,1,1), ma = theta), rand.gen = rnorm)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SPACF")
+```
+
+#### (모형3)
+
+```{r}
+set.seed(7714)
+n = 1000
+phi = c(0.3)
+theta = c(-0.5)
+mu = 100
+
+model = list(order = c(1,1,1), ar = phi, ma = theta, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm, sd = 2)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SPACF")
+```
+
+#### (모형4)
+
+```{r}
+set.seed(7714)
+n = 1000
+phi = c(0.6)
+theta = c(-0.7)
+mu = 0
+
+model = list(order = c(1,1,1), ar = phi, ma = theta, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm, sd = 1.5)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SPACF")
+```
+
+#### (모형5)
+
+```{r}
+set.seed(7714)
+n = 1000
+# phi = c(0.6)
+theta = c(-0.3)
+mu = 15
+
+model = list(order = c(0,1,1),
+             seasonal = list(order  = c(0, 1, 0), period = 12),
+             ma = theta, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm, sd = 3)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 12)
+z_diff = diff(z_diff, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "계절차분(주기=12) & 1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "계절차분(주기=12) & 1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "계절차분(주기=12) & 1차 차분된 z_diff의 SPACF")
+```
+
+#### (모형6)
+
+```{r}
+set.seed(7714)
+n = 1000
+# phi = c(0.6)
+theta = c(-0.8)
+mu = 0
+
+model = list(order = c(0,2,1),
+             # seasonal = list(order  = c(0, 1, 0), period = 12),
+             ma = theta, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm, sd = 1)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+z_diff = diff(z_diff, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "2차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "2차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "2차 차분된 z_diff의 SPACF")
+```
+
+#### (모형7)
+
+```{r}
+set.seed(7714)
+n = 1000
+phi = c(0.7)
+# theta = c(-0.7)
+mu = 10
+
+model = list(order = c(1,1,0),
+             ar = phi, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm, sd = 1)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SPACF")
+```
+
+#### (모형8)
+
+```{r}
+set.seed(7714)
+n = 1000
+# phi = c(0.7)
+theta = c(-0.4)
+mu = 25
+
+model = list(order = c(0,1,1),
+             ma = theta, intercept = mu)
+z = arima.sim(n = n, n.start = 100, model = model, rand.gen = rnorm, sd = 1)
+
+length(z)
+z = ts(z)
+ts.plot(z, ylab = "z", main = "모의실험 자료")
+acf(z, lag.max = 24, main = "z의 SACF")
+pacf(z, lag.max = 12, main = "z의 SPACF")
+
+z_diff = diff(z, lag = 1)
+ts.plot(z_diff, ylab = "z_diff", main = "1차 차분된 모의실험 자료")
+acf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SACF")
+pacf(z_diff, lag.max = 24, main = "1차 차분된 z_diff의 SPACF")
+```
