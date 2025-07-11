@@ -159,3 +159,36 @@ for (j in 1:p){
 X
 
 # ls()
+
+
+5 + (-0.2)*(1.08) + (0.3)*(2.6)
+2 + (-0.2) * (5.564) + (0.3)*(1.08)
+(0.2)*(1.2112) - (0.3)*(5.564)
+(0.3)*(1.2112)
+
+library(glue)
+abs(-1.42696 - 0.36336)
+eps_2 = 0
+eps_1 = 0.36336
+eps0 = -1.42696 + (-0.2)*(0.36336)
+eps1 = 2 + (-0.2)*(eps0) + (0.3)*(eps_1) ; print(glue("eps1 = {eps1}"))
+eps2 = 5 + (-0.2)*(eps1) + (0.3)*(eps0) ; print(glue("eps2 = {eps2}"))
+eps3 = 1 + (-0.2)*(eps2) + (0.3)*(eps1) ; print(glue("eps3 = {eps3}"))
+eps4 = 3 + (-0.2)*(eps3) + (0.3)*(eps2) ; print(glue("eps4 = {eps4}"))
+eps5 = 2 + (-0.2)*(eps4) + (0.3)*(eps3) ; print(glue("eps5 = {eps5}"))
+
+eps_vec = c(eps_2, eps_1, eps0, eps1, eps2, eps3, eps4, eps5) ; eps_vec
+
+eps_vec^2 ; sum(eps_vec^2)
+
+Zt = c(0.2, 0.5, 0.1, 0.3, 0.2)
+et = c(0, 0, 0, 0, 0)
+condi_sum = 0
+for (i in 2:5){
+  et[i] = Zt[i] - (0.5)*Zt[i-1] + (0.3)*et[i-1]
+  condi_sum = condi_sum + et[i]^2
+  print(condi_sum)
+}
+print(condi_sum)
+
+

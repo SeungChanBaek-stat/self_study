@@ -1,0 +1,699 @@
+---
+title: "시계열분석 8장"
+output: html_document
+date: "2025-07-04"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glue)
+list.files("../adv_reg/functions")
+dir = getwd() ; mother_dir = dirname(dir)
+dataset_dir = glue(dir, "/datasets", sep = "")
+```
+
+```{r}
+reg_function_dir = glue(mother_dir, "/adv_reg/functions")
+source(glue(reg_function_dir, "/mult_reg.R", sep = ""), echo = F)
+source(glue(reg_function_dir, "/reg_diagnostics.R", sep = ""), echo = F)
+
+tsa_function_dir = glue(mother_dir, "/tsa/functions")
+source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
+source(glue(tsa_function_dir, "/acf_pacf.R", sep = ""), echo = F)
+```
+
+## 8.5 모형의 적합 예제
+
+### (예 8-6)
+
+```{r}
+## Example 8.6 : 가스로 자료 분석
+# install.packages("portes") ; install.packages("lmtest")
+library(glue)
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+
+gas = scan(glue(dataset_dir, "/gas.txt"), what = list(0,0))
+names(gas) = c("rate", "co2") # 변수명 생성
+gasrate = data.frame(gas)
+time = 1:nrow(gasrate)
+rate = ts(gas$rate)
+co2 = ts(gas$co2)
+
+ts.plot(rate, ylab = "gas rate", main = "그림 8-1 가스 공급비율")
+acf2(rate, max.lag = 24, main = "그림 8-1 가스 공급비율")
+```
+
+```{r}
+fit1 = arima(rate, order = c(3,0,0)) # 절편 있는 AR(3) 모형 적합
+coeftest(fit1)
+fit2 = arima(rate, order = c(3,0,0), include.mean = F) # 절편 없는 AR(3) 모형 적합
+summary(fit2)
+```
+
+```{r}
+ts.plot(fit2$residuals, main = "그림 8-3 잔차 시계열그림"); abline(h = 0)
+acf2(fit2$residuals, max.lag = 24, main = "그림 8-4 잔차 SACF와 SPACF")
+```
+
+```{r}
+qqnorm(resid(fit2), main = "그림 8-5 잔차의 정규성검정")
+qqline(resid(fit2), col = "red")
+```
+
+```{r}
+LjungBox(fit2, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(rate, 3,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(rate, 6, 3, 0, 0) # 예측값의 시계열 그림
+sarima.for(rate, 12, 3, 0, 0) # 예측값의 시계열 그림
+sarima.for(rate, 18, 3, 0, 0) # 예측값의 시계열 그림
+sarima.for(rate, 24, 3, 0, 0) # 예측값의 시계열 그림
+```
+
+### (예 8-7)
+
+```{r}
+## Example 8.7 : 과대적합
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+
+z = scan(glue("{dataset_dir}/eg8_7.txt"))
+z.ts = ts(z)
+ts.plot(z.ts, ylab = "z", main = "그림 8-6 모의실험 자료")
+acf2(z.ts, max.lag = 24, main = "그림 8-6 ACF & PACF")
+LjungBox(z.ts, lag = seq(6,24,6))
+```
+
+```{r}
+fit = arima(z.ts, order = c(1,0,0));
+summary(fit)
+coeftest(fit)
+```
+
+```{r}
+ts.plot(fit$residuals, main = "그림 8-7 잔차", ylab = "residual") ; abline(h = 0)
+acf2(fit$residuals, max.lag = 24, main = "그림 8-8 잔차 SACF와 SPACF")
+```
+
+```{r}
+qqnorm(fit$residuals, main = "그림 8-9 잔차의 정규성검정")
+qqline(fit$residuals, col = "red")
+LjungBox(fit, lag = seq(6, 24, 6)) # 잔차의 포트맨토검정
+```
+
+```{r}
+sarima.for(z.ts, 25, 1, 0, 0)
+sarima(z.ts, 1, 0, 0)
+sarima(z.ts, 2, 0, 0)
+sarima(z.ts, 1, 0, 1)
+```
+
+### (예 8-8)
+
+```{r}
+## Example 8.8 단위근 검정
+# install.packages("fUnitRoots")
+library(astsa) # library for function acf2 & sarima
+library(lubridate) # library for function ymd
+library(portes) # library for function LjungBox
+library(fUnitRoots) # library for function adfTest
+
+z = scan(glue("{dataset_dir}/elecstock.txt"))
+stock = ts(z)
+ts.plot(stock, ylab = "stock", main = "그림 8-10 주가지수의 시계열그림")
+acf2(stock, max.lag = 24, main = "그림 8-10 주가지수의 ACF & PACF")
+LjungBox(stock, lags = seq(6, 24, 6))
+```
+
+```{r}
+# ADF 검정
+adfTest(stock, lags = 0, type = "c") # c : case2 ; 절편이 있고 추세는 없는 경우
+adfTest(stock, lags = 1, type = "c")
+adfTest(stock, lags = 2, type = "c")
+# function adf.test 를 이용할 수도 있음
+# library(tseries) # library for function adf.test & pp.test
+# adf.test(stock) # ADF 검정
+# pp.test(stock) # PP 검정
+```
+
+```{r}
+dstock = diff(stock, lag = 1)
+ts.plot(dstock, ylab = "diff(stock)",
+        main = "그림 8-11 차분된 주가지수") ; abline(h = 0)
+acf2(dstock, max.lag = 24)
+LjungBox(dstock, lags = seq(6, 24, 6))
+```
+
+```{r}
+fit = arima(stock, order = c(1, 0, 0), method = "CSS"); fit
+acf2(fit$residuals)
+```
+
+```{r}
+fit1 = arima(stock, order = c(0,1,0));
+summary(fit1)
+acf2(fit1$residuals)
+```
+
+### (예 8-9)
+
+```{r}
+## Example 8.9 : Female Worker
+library(astsa) # library for function acf2 & sarima
+library(lubridate) # library for function ymd
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+library(fUnitRoots) # library for function adfTest
+library(ggplot2) # library for ggplot
+
+z = scan(glue("{dataset_dir}/female.txt"))
+female = ts(z)
+ts.plot(female, ylab = "female", main = "그림 8-9 여성 근로자")
+```
+
+```{r}
+date = ymd("821201") + months(1:length(female) - 1)
+femaledf = data.frame(female, date)
+acf2(female, max.lag = 24, main = "그림 8-9 여성 근로자의 ACF & PACF")
+LjungBox(female, lags = seq(6, 24, 6))
+```
+
+```{r}
+adfTest(female, lags = 0, type = "ct") # ct : case3 ; 추세가 있는 경우 
+adfTest(female, lags = 1, type = "ct")
+adfTest(female, lags = 2, type = "ct")
+```
+
+```{r}
+fit1 = lm(female ~ date, data = femaledf) # 선형모형 적합
+coefficients(fit1) ; residual = fit1$residuals
+resdf = data.frame(date, residual)
+
+ggplot(aes(x = date, y = residual), data = resdf) + geom_line()
+```
+
+```{r}
+dfemale = diff(female, lag = 1)
+wbar = mean(dfemale) ; gamma_0_hat = var(dfemale)
+acf2(dfemale, max.lag = 24) # SACF들은 모두 유의하지 않으므로 S_wbar 계산에 사용하지 않아도 된다.
+S_wbar = sqrt(gamma_0_hat / length(dfemale))
+t_0 = wbar / S_wbar ; t_alpha = qt(0.05, (length(dfemale)-2), lower.tail = FALSE)
+wbar ; S_wbar ; t_0 ; t_alpha
+
+female
+mean(dfemale)
+ts.plot(dfemale, ylab = "diff(female)",
+        main = "그림 8-10 차분된 여성 근로자") ; abline(h = 0)
+```
+
+```{r}
+acf2(dfemale, max.lag = 24, main = "그림 8-10 ACF & PACF")
+fit2 = arima(female, order = c(0,1,0), method = "ML")
+LjungBox(fit2, lags = seq(6, 24, 6))
+```
+
+## 연습문제
+
+### 8.1
+
+```{r}
+source(glue(tsa_function_dir, "/ex8_1.R", sep = ""), echo = F)
+```
+
+#### (a)
+
+```{r}
+sacf_vec = c(-0.48, 0.04, -0.06, 0.14, -0.22, 0.19, -0.10, -0.02, 0.09, 0.03, -0.12, 0.09, 0.03)
+spacf_vec = c(-0.48, -0.24, -0.21, 0.01, -0.20, -0.01, -0.05, -0.15, 0.04, 0.06, -0.04, 0.02, 0.06)
+n = 100 ; z_bar = 24.75 ; z_sd = 9.27
+
+
+ex8_1_a = ex8_1(sacf_vec, spacf_vec, n = n, z_bar = z_bar, z_sd = z_sd )
+```
+
+#### (b)
+
+```{r}
+sacf_vec = c(0.59, 0.44, 0.33, 0.23, 0.24, 0.16, 0.05, 0.01, -0.03, -0.11, -0.08, -0.07, 0.01)
+spacf_vec = c(0.59, 0.13, 0.04, 0.02, 0.12, -0.05, -0.12, -0.03, -0.01, -0.13, 0.06, 0.04, 0.13)
+n = 100 ; z_bar = 25.56 ; z_sd = 3.85
+
+
+ex8_1_b = ex8_1(sacf_vec, spacf_vec, n = n, z_bar = z_bar, z_sd = z_sd )
+```
+
+#### (c)
+
+```{r}
+sacf_vec = c(0.97, 0.94, 0.91, 0.88, 0.85, 0.82, 0.79, 0.76, 0.73, 0.70, 0.67, 0.64, 0.61)
+spacf_vec = c(0.97, -0.02, -0.01, -0.02, -0.02, -0.01, -0.02, -0.02, -0.02, -0.01, -0.01, -0.02, -0.01)
+n = 100 ; z_bar = 548.52 ; z_sd = 149.90
+
+
+ex8_1_c = ex8_1(sacf_vec, spacf_vec, n = n, z_bar = z_bar, z_sd = z_sd )
+```
+
+#### (d)
+
+```{r}
+sacf_vec = c(-0.44, -0.05, -0.01, -0.03, 0.12, -0.15, 0.15, -0.04, -0.10, 0.09, 0.08, -0.07, 0.06)
+spacf_vec = c(-0.44, -0.31, -0.25, -0.25, -0.07, -0.21, -0.01, 0.02, -0.09, -0.02, 0.03, -0.02, 0.01)
+n = 100 ; z_bar = 19.02 ; z_sd = 1.351
+
+
+ex8_1_d = ex8_1(sacf_vec, spacf_vec, n = n, z_bar = z_bar, z_sd = z_sd, diff = TRUE)
+```
+
+### 8.2
+
+#### (a)
+
+```{r}
+library(glue)
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+
+ex8_2a = scan(glue("{dataset_dir}/ex8_2a.txt"))
+ex8_2a = ts(ex8_2a) ; ex8_2a = log(ex8_2a)
+ts.plot(ex8_2a)
+acf2(ex8_2a, max.lag = 24, main = "ex8_2a : SACF, SPACF")
+
+fit1 = arima(ex8_2a, order = c(2,0,0)) # 절편 있는 AR(2) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/100
+# fit2 = arima(ex8_2a, order = c(2,0,0), include.mean = F) # 절편 없는 AR(2) 모형 적합
+# summary(fit2)
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex8_2a, 2,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex8_2a, 6, 2, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex8_2a, 12, 2, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex8_2a, 18, 2, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex8_2a, 24, 2, 0, 0) # 예측값의 시계열 그림
+```
+
+#### (b)
+
+```{r}
+library(glue)
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+
+ex8_2b = scan(glue("{dataset_dir}/ex8_2b.txt"))
+ex8_2b = ts(ex8_2b) ; n = length(ex8_2b) ; ex8_2b = log(ex8_2b)
+ts.plot(ex8_2b) 
+acf2(ex8_2b, max.lag = 24, main = "ex8_2b : SACF, SPACF")
+
+fit1 = arima(ex8_2b, order = c(1,0,0)) # 절편 있는 AR(1) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/n
+# fit2 = arima(ex8_2a, order = c(2,0,0), include.mean = F) # 절편 없는 AR(2) 모형 적합
+# summary(fit2)
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex8_2b, 1,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex8_2b, 6, 1, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex8_2b, 12, 1, 0, 0) # 예측값의 시계열 그림
+```
+
+#### (c)
+
+```{r}
+library(glue)
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+
+ex8_2c = scan(glue("{dataset_dir}/ex8_2c.txt"))
+ex8_2c = ts(ex8_2c) ; n = length(ex8_2c)
+ts.plot(ex8_2c) 
+acf2(ex8_2c, max.lag = 24, main = "ex8_2c : SACF, SPACF")
+
+adfTest(ex8_2c, lags = 0, type = "c") # c : case2 ; 절편이 있고 추세는 없는 경우
+adfTest(ex8_2c, lags = 1, type = "c")
+adfTest(ex8_2c, lags = 2, type = "c")
+
+fit1 = arima(ex8_2c, order = c(2,0,0)) # 절편 있는 AR(2) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/n
+# fit2 = arima(ex8_2c, order = c(0,0,1)) # 절편 있는 MA(1) 모형 적합
+# coeftest(fit2)
+# sum(fit2$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+# ts.plot(fit2$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+# acf2(fit2$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+# 
+# qqnorm(resid(fit2), main = "적합된 모형의 잔차의 정규성검정")
+# qqline(resid(fit2), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex8_2c, 2,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex8_2c, 6, 2, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex8_2c, 12, 2, 0, 0) # 예측값의 시계열 그림
+```
+
+#### (d)
+
+```{r}
+library(glue)
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+
+ex8_2d = scan(glue("{dataset_dir}/ex8_2d.txt"))
+ex8_2d = ts(ex8_2d) ; n = length(ex8_2d)
+ts.plot(ex8_2d) 
+acf2(ex8_2d, max.lag = 24, main = "ex8_2d : SACF, SPACF")
+
+adfTest(ex8_2c, lags = 0, type = "ct") # c : case3 ; 절편이 있고 추세도 있는 경우
+adfTest(ex8_2c, lags = 1, type = "ct")
+adfTest(ex8_2c, lags = 2, type = "ct")
+
+# fit1 = arima(ex8_2c, order = c(2,0,0)) # 절편 있는 AR(2) 모형 적합
+# coeftest(fit1)
+# sum(fit1$residuals^2)/n
+fit2 = arima(ex8_2d, order = c(1,0,0)) # 절편 있는 AR(1) 모형 적합
+coeftest(fit2)
+sum(fit2$residuals^2)/n
+
+# ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+# acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+# 
+# qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+# qqline(resid(fit1), col = "red")
+
+ts.plot(fit2$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit2$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit2), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit2), col = "red")
+
+LjungBox(fit2, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex8_2d, 1,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex8_2d, 6, 1, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex8_2d, 12, 1, 0, 0) # 예측값의 시계열 그림
+```
+
+### 8.3
+
+#### (a)
+
+```{r}
+library(glue)
+library(astsa) # library for function acf2 & sarima
+library(portes) # library for function LjungBox
+library(lmtest) # library for function coeftest
+library(fUnitRoots)
+
+z = scan(glue(dataset_dir, "/ex7_5a.txt"))
+length(z)
+ex7_5a = ts(z)
+ts.plot(ex7_5a, ylab = "ex7_5a", main = "모의실험 자료")
+acf(ex7_5a, lag.max = 24, main = "ex7_5a의 SACF")
+pacf(ex7_5a, lag.max = 24, main = "ex7_5a의 SPACF")
+
+adfTest(ex7_5a, lags = 0, type = "ct") # c : case3 ; 절편이 있고 추세도 있는 경우
+adfTest(ex7_5a, lags = 1, type = "ct")
+adfTest(ex7_5a, lags = 2, type = "ct")
+adfTest(ex7_5a, lags = 3, type = "ct")
+adfTest(ex7_5a, lags = 4, type = "ct")
+
+fit1 = arima(ex7_5a, order = c(1,1,0)) # 절편 있는 AR(1) 모형 적합
+coeftest(fit1)
+sum(fit2$residuals^2)/n
+
+diff_a_1 = diff(ex7_5a, lag = 1)
+ts.plot(diff_a_1, ylab = "diff_a_1", main = "1차 차분된 모의실험 자료")
+acf(diff_a_1, lag.max = 24, main = "1차 차분된 ex7_5a의 SACF")
+pacf(diff_a_1, lag.max = 24, main = "1차 차분된 ex7_5a의 SPACF")
+
+# diff_a_2 = diff(diff_a_1, lag = 1)
+# ts.plot(diff_a_2, ylab = "diff_a_2", main = "2차 차분된 모의실험 자료")
+# acf(diff_a_2, lag.max = 24, main = "2차 차분된 ex7_5a의 SACF")
+# pacf(diff_a_2, lag.max = 24, main = "2차 차분된 ex7_5a의 SPACF")
+
+# fit2 = arima(diff_a_1, order = c(1,0,0)) # 절편 있는 AR(1) 모형 적합
+# coeftest(fit2)
+# sum(fit2$residuals^2)/n
+
+# fit3 = arima(diff_a_1, order = c(1,0,0), include.mean = FALSE) # 절편 없는 AR(1) 모형 적합
+# coeftest(fit3)
+# sum(fit3$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex7_5a, 1,1,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex7_5a, 6, 1, 1, 0) # 예측값의 시계열 그림
+sarima.for(ex7_5a, 12, 1, 1, 0) # 예측값의 시계열 그림
+```
+
+#### (b)
+
+```{r}
+library(glue)
+source(glue(tsa_function_dir, "/ex8_1.R", sep = ""), echo = F)
+z = scan(glue(dataset_dir, "/ex7_5b.txt"))
+n = length(z)
+ex7_5b = ts(z)
+ts.plot(ex7_5b, ylab = "ex7_5b", main = "모의실험 자료")
+acf(ex7_5b, lag.max = 24, main = "ex7_5b의 SACF")
+pacf(ex7_5b, lag.max = 12, main = "ex7_5b의 SPACF")
+
+adfTest(ex7_5b, lags = 0, type = "c") # ct : case3 ; 절편이 있고 추세도 있는 경우
+adfTest(ex7_5b, lags = 1, type = "c")
+adfTest(ex7_5b, lags = 2, type = "c")
+
+# diff_b_1 = diff(ex7_5b, lag = 1)
+# ts.plot(diff_b_1, ylab = "diff_b_1", main = "1차 차분된 모의실험 자료")
+# acf(diff_b_1, lag.max = 24, main = "1차 차분된 ex7_5b의 SACF")
+# pacf(diff_b_1, lag.max = 24, main = "1차 차분된 ex7_5b의 SPACF")
+
+fit1 = arima(ex7_5b, order = c(1,0,0)) # 절편 있는 AR(1) 모형 적합
+coeftest(fit1)
+sum(fit2$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex7_5b, 1,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex7_5b, 6, 1, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex7_5b, 12, 1, 0, 0) # 예측값의 시계열 그림
+
+dl_b = durbin_levinson(ex7_5b, K = 10)
+
+sacf = dl_b$SACF ; spacf = dl_b$SPACF
+sacf
+spacf
+
+z_bar = mean(ex7_5b) ; z_sd = sd(ex7_5b)
+ex8_1(sacf = sacf, spacf = spacf, n = n, z_bar = z_bar, z_sd = z_sd, diff = FALSE)
+```
+
+#### (c)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5c.txt"))
+n = length(z) ; n
+ex7_5c = ts(z)
+ts.plot(ex7_5c, ylab = "ex7_5c", main = "모의실험 자료")
+acf(ex7_5c, lag.max = 24, main = "ex7_5c의 SACF")
+pacf(ex7_5c, lag.max = 12, main = "ex7_5c의 SPACF")
+
+adfTest(ex7_5c, lags = 0, type = "c") # c : case2 ; 절편이 있고 추세는 없는 경우
+adfTest(ex7_5c, lags = 1, type = "c")
+adfTest(ex7_5c, lags = 2, type = "c")
+
+diff_c_1 = diff(ex7_5c, lag = 1)
+ts.plot(diff_c_1, ylab = "diff_c_1", main = "1차 차분된 모의실험 자료")
+acf(diff_c_1, lag.max = 24, main = "1차 차분된 ex7_5c의 SACF")
+pacf(diff_c_1, lag.max = 24, main = "1차 차분된 ex7_5c의 SPACF")
+
+fit1 = arima(ex7_5c, order = c(0,1,1)) # 차분된 MA(1) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex7_5c, 0,1,1) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex7_5c, 6, 0, 1, 1) # 예측값의 시계열 그림
+sarima.for(ex7_5c, 12, 0, 1, 1) # 예측값의 시계열 그림
+
+dl_c = durbin_levinson(diff_c_1, K = 10)
+
+sacf = dl_c$SACF ; spacf = dl_c$SPACF
+
+z_bar = mean(ex7_5c) ; z_sd = sd(ex7_5c)
+ex8_1(sacf = sacf, spacf = spacf, n = n, z_bar = z_bar, z_sd = z_sd, diff = TRUE)
+```
+
+#### (d)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5d.txt"))
+n = length(z)
+ex7_5d = ts(z)
+ts.plot(ex7_5d, ylab = "ex7_5d", main = "모의실험 자료")
+acf(ex7_5d, lag.max = 24, main = "ex7_5d의 SACF")
+pacf(ex7_5d, lag.max = 12, main = "ex7_5d의 SPACF")
+
+adfTest(ex7_5d, lags = 0, type = "ct") # ct : case3 ; 절편이 있고 추세도 있는 경우
+adfTest(ex7_5d, lags = 1, type = "ct")
+adfTest(ex7_5d, lags = 2, type = "ct")
+
+diff_d_1 = diff(ex7_5d, lag = 1)
+ts.plot(diff_d_1, ylab = "diff_d_1", main = "1차 차분된 모의실험 자료")
+acf(diff_d_1, lag.max = 24, main = "1차 차분된 ex7_5d의 SACF")
+pacf(diff_d_1, lag.max = 24, main = "1차 차분된 ex7_5d의 SPACF")
+
+fit1 = arima(ex7_5d, order = c(2,1,0)) # 차분된 AR(2) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/n
+
+fit2 = arima(ex7_5d, order = c(0,1,2)) # 차분된 MA(2) 모형 적합
+coeftest(fit2)
+sum(fit2$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex7_5d, 2,1,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex7_5d, 6, 2, 1, 0) # 예측값의 시계열 그림
+sarima.for(ex7_5d, 12, 2, 1, 0) # 예측값의 시계열 그림
+```
+
+#### (e)
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/ex7_5e.txt"))
+length(z)
+ex7_5e = ts(z)
+ts.plot(ex7_5e, ylab = "ex7_5e", main = "모의실험 자료")
+acf(ex7_5e, lag.max = 24, main = "ex7_5e의 SACF")
+pacf(ex7_5e, lag.max = 12, main = "ex7_5e의 SPACF")
+
+adfTest(ex7_5e, lags = 0, type = "c") # c : case2 ; 절편이 있고 추세도 있는 경우
+adfTest(ex7_5e, lags = 1, type = "c")
+adfTest(ex7_5e, lags = 2, type = "c")
+
+fit1 = arima(ex7_5d, order = c(1,0,0)) # AR(1) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex7_5e, 1,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex7_5e, 6, 1, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex7_5e, 12, 1, 0, 0) # 예측값의 시계열 그림
+
+
+
+fit2 = arima(ex7_5d, order = c(1,0,0), include.mean = FALSE, method = "ML") # AR(1) 모형 적합
+coeftest(fit2)
+sum(fit2$residuals^2)/n
+
+ts.plot(fit2$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit2$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit2), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit2), col = "red")
+
+LjungBox(fit2, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(ex7_5e, 1,0,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(ex7_5e, 6, 1, 0, 0) # 예측값의 시계열 그림
+sarima.for(ex7_5e, 12, 1, 0, 0) # 예측값의 시계열 그림
+```
+
+### 8.4
+
+```{r}
+library(glue)
+z = scan(glue(dataset_dir, "/interest.txt"))
+n = length(z)
+interest = ts(z)
+ts.plot(interest, ylab = "interest", main = "이자율 자료")
+acf(interest, lag.max = 24, main = "이자율의 SACF")
+pacf(interest, lag.max = 24, main = "이자율의 SPACF")
+
+adfTest(interest, lags = 0, type = "c") # c : case2 ; 절편이 있고 추세도 있는 경우
+adfTest(interest, lags = 1, type = "c")
+adfTest(interest, lags = 2, type = "c")
+
+diff_int = diff(interest, lag = 1)
+ts.plot(diff_int, ylab = "diff_int", main = "1차 차분된 이자율 자료")
+acf(diff_int, lag.max = 24, main = "1차 차분된 이자율의 SACF")
+pacf(diff_int, lag.max = 24, main = "1차 차분된 이자율의 SPACF")
+
+fit1 = arima(interest, order = c(1,1,0)) # 1차 차분된 AR(1) 모형 적합
+coeftest(fit1)
+sum(fit1$residuals^2)/n
+
+fit2 = arima(interest, order = c(0,1,1)) # 1차 차분된 MA(1) 모형 적합
+coeftest(fit2)
+sum(fit2$residuals^2)/n
+
+ts.plot(fit1$residuals, main = "적합된 모형의 잔차 시계열그림"); abline(h = 0)
+acf2(fit1$residuals, max.lag = 24, main = "적합된 모형의 잔차 SACF와 SPACF")
+
+qqnorm(resid(fit1), main = "적합된 모형의 잔차의 정규성검정")
+qqline(resid(fit1), col = "red")
+
+LjungBox(fit1, lags = seq(6, 24, 6)) # 잔차의 포트맨토 검정
+sarima(interest, 1,1,0) # sarima를 이용한 모형 적합을 이용한 경우
+sarima.for(interest, 6, 1, 1, 0) # 예측값의 시계열 그림
+sarima.for(interest, 12, 1, 1, 0) # 예측값의 시계열 그림
+
+```
