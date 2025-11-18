@@ -1,0 +1,69 @@
+---
+title: "시계열분석 9장"
+output: html_document
+date: "2025-09-03"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(glue)
+list.files("../adv_reg/functions")
+dir = getwd() ; mother_dir = dirname(dir)
+dataset_dir = glue(dir, "/datasets", sep = "")
+```
+
+```{r}
+reg_function_dir = glue(mother_dir, "/adv_reg/functions")
+source(glue(reg_function_dir, "/mult_reg.R", sep = ""), echo = F)
+source(glue(reg_function_dir, "/reg_diagnostics.R", sep = ""), echo = F)
+
+tsa_function_dir = glue(mother_dir, "/tsa/functions")
+source(glue(tsa_function_dir, "/exp_smt.R", sep = ""), echo = F)
+source(glue(tsa_function_dir, "/acf_pacf.R", sep = ""), echo = F)
+```
+
+## 9.4 예제
+
+### (예 9-1)
+
+```{r}
+## Example 9.1 : AR(1)과정의 적합 및 예측
+# install.packages("portes") ; install.packages("lmtest")
+library(glue)
+library(astsa) # library for function acf2 & sarima.for
+
+z = scan(glue(dataset_dir, "/eg8_7.txt"))
+z = ts(z)
+ts.plot(z, ylab = "z", main = "Simulated AR(1) Process")
+acf2(z, max.lag = 24, main = "AR(1)과정의 ACF & PACF")
+# sarima(z, 1,0,0)
+sarima.for(z,25,1,0,0) # 그림 9-1 관측값과 예측값
+```
+
+### (예 9-5)
+
+```{r}
+## Example 9.5 : IMA(1,1)과정의 적합 및 예측
+# install.packages("portes") ; install.packages("lmtest")
+library(glue)
+library(astsa) # library for function acf2 & sarima.for
+
+z = scan(glue(dataset_dir, "/eg9_5.txt"))
+z = ts(z)
+ts.plot(z, ylab = "z", main = "그림 9-2 모의실험 자료")
+acf2(z, max.lag = 24, main = "그림 9-2 SACF & SPACF")
+ts.plot(diff(z), main = "그림 9-3 1차 차분된 모의실험 자료"); abline(h = 0)
+acf2(diff(z), max.lag = 24, main = "그림 9-3 SACF & SPACF")
+fit = arima(z, order = c(0,1,1))
+ts.plot(resid(fit), main = "그림 9-4 ARIMA(0,1,1) 적합후의 잔차"); abline(h = 0)
+acf2(resid(fit), main = "그림 9-4 잔차의 SACF & SPACF")
+
+sarima(z,0,1,1) # Fig 9.4
+sarima.for(z, 25, 0,1,1)
+```
