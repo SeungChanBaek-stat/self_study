@@ -1,0 +1,121 @@
+---
+title: '2장 : 시작하기 전에, 신경망의 수학적 빌딩 블록'
+output: html_document
+date: "2025-11-18"
+
+header-includes:
+  - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+# install.packages("reticulate")
+# library(reticulate)
+# use_condaenv("r-tf-env",
+#              conda = 'C:/Users/PC/anaconda3/condabin/conda.bat',
+#              required = TRUE)
+# install.packages("tensorflow")
+# install.packages("keras3")
+library(tensorflow)
+library(keras)
+
+tf$config$list_physical_devices("GPU")  # GPU 인식 확인
+```
+
+```{r}
+library(tensorflow)
+
+tf$config$list_physical_devices()           # 전체 디바이스
+tf$config$list_physical_devices("CPU")      # CPU
+tf$config$list_physical_devices("GPU")      # GPU
+tf$`__version__`
+```
+
+```{r}
+library(tensorflow)
+
+# 어떤 디바이스를 쓰는지 확인
+tf$config$list_logical_devices()
+
+# # 간단한 연산
+# with(tf$device("/GPU:0"), {
+#   a <- tf$random$normal(shape = c(2000L, 2000L))
+#   b <- tf$random$normal(shape = c(2000L, 2000L))
+#   c <- tf$matmul(a, b)
+# })
+```
+
+### 목록 2.1 케라스에 내장된 MNIST 데이터셋 가져오기
+
+```{r}
+library(keras)
+mnist = dataset_mnist()
+train_images = mnist$train$x
+train_labels = mnist$train$y
+test_images = mnist$test$x
+test_labels = mnist$test$y
+```
+
+```{r, echo=FALSE}
+str(train_images)
+str(train_labels)
+
+str(test_images)
+str(test_labels)
+```
+
+### 목록 2.2 신경망 아키텍처
+
+```{r, echo=FALSE}
+network = keras_model_sequential() %>%
+  layer_dense(units = 512, activation = "relu", input_shape = c(28 * 28)) %>%
+  layer_dense(units = 10, activation = "softmax")
+```
+
+### 목록 2.3 컴파일 단계
+
+```{r, echo=FALSE}
+network %>% compile(
+  optimizer = "rmsprop",
+  loss = "categorical_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+### 목록 2.4 이미지 데이터 준비하기
+
+```{r, echo=FALSE}
+train_images = array_reshape(train_images, c(60000, 28 * 28))
+train_images = train_images / 255
+
+test_images = array_reshape(test_images, c(10000, 28 * 28))
+test_images = test_images / 255
+```
+
+### 목록 2.5 레이블 준비하기
+
+```{r, echo = FALSE}
+train_labels = to_categorical(train_labels)
+test_labels = to_categorical(test_labels)
+```
+
+### 모델 훈련데이터 적합
+
+```{r, echo = FALSE}
+network %>% fit(train_images, train_labels, epochs = 5, batch_size = 128)
+```
+
+```{r, echo=FALSE}
+metrics = network %>% evaluate(test_images, test_labels)
+metrics
+```
