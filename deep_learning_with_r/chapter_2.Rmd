@@ -6,19 +6,25 @@ date: "2025-11-18"
 header-includes:
   - \newcommand{\bm}[1]{\boldsymbol{\mathbf{#1}}}
 ---
+# 2장에서 다루는 내용
 
+- 신경망의 첫번째 예제
+
+- 텐서 및 텐서 연산
+
+- 역전파 및 경사 하강을 통해 신경망을 학습하는 방법
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+## 2.1 신경망 둘러보기
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+케라스 R 패키지를 사용한 손글씨 숫자를 분류하는 방법 
+- 열 개 숫자로 된 손글씨(28 \times 28 픽셀)의 회색 음영 이미지를 열 개 범주(0~9)로 분류
+- MNIST : 1980년대 미국 국립 표준 기술 연구소(NIST)에서 구성한 6만 개 훈련 이미지와 1만 개 테스트 이미지 집합
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
+```{r}
 # install.packages("reticulate")
 # library(reticulate)
 # use_condaenv("r-tf-env",
@@ -46,13 +52,6 @@ library(tensorflow)
 
 # 어떤 디바이스를 쓰는지 확인
 tf$config$list_logical_devices()
-
-# # 간단한 연산
-# with(tf$device("/GPU:0"), {
-#   a <- tf$random$normal(shape = c(2000L, 2000L))
-#   b <- tf$random$normal(shape = c(2000L, 2000L))
-#   c <- tf$matmul(a, b)
-# })
 ```
 
 ### 목록 2.1 케라스에 내장된 MNIST 데이터셋 가져오기
@@ -76,7 +75,7 @@ str(test_labels)
 
 ### 목록 2.2 신경망 아키텍처
 
-```{r, echo=FALSE}
+```{r}
 network = keras_model_sequential() %>%
   layer_dense(units = 512, activation = "relu", input_shape = c(28 * 28)) %>%
   layer_dense(units = 10, activation = "softmax")
@@ -84,7 +83,7 @@ network = keras_model_sequential() %>%
 
 ### 목록 2.3 컴파일 단계
 
-```{r, echo=FALSE}
+```{r}
 network %>% compile(
   optimizer = "rmsprop",
   loss = "categorical_crossentropy",
@@ -94,7 +93,7 @@ network %>% compile(
 
 ### 목록 2.4 이미지 데이터 준비하기
 
-```{r, echo=FALSE}
+```{r}
 train_images = array_reshape(train_images, c(60000, 28 * 28))
 train_images = train_images / 255
 
@@ -104,18 +103,178 @@ test_images = test_images / 255
 
 ### 목록 2.5 레이블 준비하기
 
-```{r, echo = FALSE}
+```{r}
 train_labels = to_categorical(train_labels)
 test_labels = to_categorical(test_labels)
 ```
 
 ### 모델 훈련데이터 적합
 
-```{r, echo = FALSE}
+```{r}
 network %>% fit(train_images, train_labels, epochs = 5, batch_size = 128)
 ```
 
-```{r, echo=FALSE}
+```{r}
 metrics = network %>% evaluate(test_images, test_labels)
 metrics
+```
+
+```{r}
+network %>% predict(test_images[1:10,]) %>% k_argmax()
+```
+
+## 2.2 신경망에 대한 데이터 표현
+
+텐서 : 임의의 차원 수로 이루어진 벡터 및 행렬의 일반화 개념
+
+R에서 벡터는 1D 텐서를 만들고 조작하는 데 사용되며, 행렬은 2D 텐서에 사용된다.
+
+더 상위인 차원의 경우, 임의의 수의 차원을 지원하는 배열 객체가 사용된다. 
+
+### 2.2.1 스칼라
+
+숫자가 한 개뿐인 텐서를 스칼라(scalar), 스칼라 텐서(scalar tensor), 0차원 텐서(zero-dimensional tensor) 또는 0D 텐서(0D 텐서)라고 한다. R에는 스칼라를 나타내는 데이터 유형이 없다(모든 숫자 객체는 벡터, 행렬 또는 배열임.) 그러나 항상 길이가 1인 R 벡터는 개념적으로 스칼라와 비슷하다.
+
+### 2.2.2 벡터
+
+1차원 배열로 구성된 수를 벡터(vector) 또는 1D 텐서(1D 텐서)라고 부른다. 1D 텐서는 정확히 하나의 축을 갖고 있다. R벡터를 배열 객체로 변환하면 차원을 확인해 볼 수 있다.
+
+```{r}
+x = c(12, 3, 6, 14, 10)
+str(x)
+
+dim(as.array(x))
+```
+
+### 2.2.3 행렬
+
+숫자의 2차원 배열은 행렬(matrix), 즉 2D 텐서(2D tensor)이다. 행렬에는 행(raws)과 열(columns)이라 부르는 두 개 축이 있다. 행렬은 '직사각형 모양으로 된 숫자 격자'라는 식으로, 해석할 수 있다.
+
+```{r}
+x = matrix(rep(0, 3*5), nrow = 3, ncol = 5)
+x
+
+dim(x)
+```
+
+### 2.2.4 3D 텐서 및 고차원 텐서
+
+새로운 행렬에 이러한 행렬들을 압축하면 시각적으로 정육면체라고 해석할 수 있는 3D 텐서를 얻을 수 있다.
+
+```{r}
+x = array(rep(0, 2*3*2), dim = c(2,3,2))
+str(x)
+
+dim(x)
+```
+
+배열에 3D 텐서를 꾸려 넣으면 4D 텐서를 생성할 수 있다. 딥러닝에서는 일반적으로 0D에서 4D까지의 텐서를 조작하지만, 비디오 데이터를 처리하는 경우, 5D까지 올라갈 수 있다.
+
+### 2.2.5 주요 특성
+
+텐서는 세 가지 주요 특성으로 정의된다.
+
+- 축의 수(number of ranks) : 예를 들어, 3D 텐서에는 세 개축, 행렬에는 두 개 축이 있다.
+
+- 모양(shapes) : 텐서가 각 축을 따라 몇 개 치수를 갖고 있는지를 나타내는 정수 벡터이다. 예를 들어, 앞의 행렬 예제는 (3, 5)모양이고, 3D 텐서 예제의 모양은 (2, 3, 2)이다. 벡터는 (5)와 같이 원소가 한 개뿐인 모양이다.
+
+- 데이터 유형(data types) : 텐서에 포함된 데이터의 유형이다. 예를 들어, 텐서의 유형은 정수형(integer)이거나 배정도 실수형(double)일 수 있다. 드물기는 하지만, 문자형(character) 텐서를 볼 수도 있다. 그러나 텐서가 사전 할당된 인접 메모리 세그먼트에 있고, 가변 길이인 문자열은 이 구현의 사용을 배제하기 때문에 거의 사용되지 않는다.
+
+#### 실제 MNIST 데이터셋의 예
+
+```{r}
+library(keras)
+mnist = dataset_mnist()
+train_images = mnist$train$x
+train_labels = mnist$train$y
+test_images = mnist$test$x
+test_labels = mnist$test$y
+```
+
+```{r}
+length(dim(train_images))
+
+dim(train_images)
+
+typeof(train_images)
+```
+
+```{r}
+digit = train_images[5, , ]
+plot(as.raster(digit, max = 255))
+```
+
+### 2.2.6 R에서 텐서 다루기
+
+텐서 슬라이싱(tensor slicing) : 텐서에서 특정 원소를 선택하는 일
+
+#### 10번에서 99번까지의 숫자 이미지를 선택하는 예
+
+```{r}
+my_slice = train_images[10:99, , ]
+dim(my_slice)
+```
+```{r}
+my_slice = train_images[10:99, 1:28, 1:28]
+dim(my_slice)
+```
+
+#### 모든 이미지의 오른쪽 하단에 $14 \times 14$ 픽셀 선택의 예
+
+```{r}
+my_slice = train_images[, 15:28, 15:28]
+dim(my_slice)
+```
+
+### 2.2.7 데이터 배치라는 개념
+
+- 표본 축(sample axis) 또는 표본 차원(sample dimension) : 데이터 텐서의 첫 번째 축
+
+- 딥러닝 모델은 학습 시에 전체 데이터셋을 한 번에 처리하기 보다, 작은 배치(batches)로 나눠서 처리한다.
+
+- 배치 축(batch axis) 또는 배치 차원(batch dimension) : 배치 텐서를 고려했을 때의 첫 번째 축
+
+```{r}
+batch_1 = train_images[1:128, , ]
+batch_2 = train_images[129:256, , ]
+
+dim(batch_1)
+dim(batch_2)
+```
+
+### 2.2.8 데이터 텐서의 실제 사례
+
+- 벡터 데이터 : (표본, 특징) 모양으로 된 2D 텐서
+
+- 일기 예보 데이터 또는 시퀀스 데이터 : (표본, 시간대, 특징) 모양으로 된 3D 텐서
+
+- 이미지 : (표본, 높이, 너비, 채널) 모양 또는 (표본, 채널, 높이, 너비) 모양으로 된 4D 텐서
+
+- 비디오 : (표본, 프레임, 높이, 너비, 채널) 모양 또는 (표본, 프레임, 채널, 높이, 너비) 모양으로 된 5D 텐서
+
+### 2.2.9 벡터 데이터
+
+가장 일반적인 데이터 텐서 종류로, 각 단일 데이터 점은 벡터로 부호화될 수 있으므로 데이터 배치는 2D 텐서(즉, 벡터 배열)로 부호화한다. 여기서 첫 번째 축은 표본 축(sample axis), 두 번째 축은 특징 축(feature axis)이다.
+
+- 보험 통계 데이터셋 : 각 개인의 나이, 우편번호, 소득을 고려한 데이터셋. 각 사람은 세 가지 값의 벡터로 특징지을 수 있으므로 10만 명에 이르는 전체 데이터셋의 경우 (100000, 3) 모양으로 된 2D 텐서로 저장할 수 있다.
+
+- 텍스트 문서 데이터셋 : 각 문서가 단어가 몇 번이나 등장하는지를 나타내는 데이터셋. 각 문서는 2만 개 값(사전에 들어 있는 한 개 단어당 한 개 값. 즉, 문서에는 그 단어의 출현 빈도수가 저장되어 있다.)으로 이뤄진 벡터로 부호화 될 수 있으므로 500개 문서로 된 전체 데이터 집합을 (500, 20000) 모양으로 된 텐서로 저장할 수 있다.
+
+### 2.2.10 시계열 데이터 또는 시퀀스 데이터
+
+데이터(또는 수열 순서의 개념)에서 시간이 중요할 때마다 명시적인 시간 축을 사용해 3D 텐서에 저장하는 게 바람직하다. 각 표본을 일련의 벡터(2D 텐서)로 부호화할 수 있으므로 데이터 배치는 3D 텐서로 부호화된다.
+
+관례에 따라 시간 축은 항상 두 번째 축이다. 몇 가지 예를 살펴보자.
+
+- 주가 데이터 셋 : 매분 주가의 현재 가격, 지난 1분간의 최고가 및 최저가로 저장된 데이터셋. 따라서 1분마다 크기가 3인 벡터가 되므로, 하루 동안 이뤄진 전체 거래는 (390, 3) 모양으로 된 2D 텐서(거래일에는 390분)으로 부호화되며, 250일분의 데이터를 (250, 390, 3) 모양으로 된 3D 텐서에 저장할 수 있다. 즉 여기에서의 각 표본은 하루 분량의 데이터가 된다.
+
+- 트윗 데이터 셋 : 140개 크기를 가진 하나의 트윗에 대해, 128개 고유 영문자중 하나에 해당하는 경우 1, 그렇지 않으면 0을 부여하는 방식으로 크기가 128인 이진 벡터로 부호화할 수 있다. (one-hot encoding) 즉, 하나의 트윗에 대해 (140, 128) 크기의 2D 텐서로 부호화할 수 있으며, 100만 트윗의 데이터셋을 텐서 모양(1000000, 140, 128) 으로 저장할 수 있다.
+
+### 2.2.11
+
+일반적으로 이미지에는 높이(height), 너비(width) 및 색상 심도(color depth, 즉 색 깊이 또는 색심도)라는 세 가지 차원이 있다. 회색 음영 이미지(MNIST 숫자의 예)의 색상 채널은 한 개 뿐이므로 2D 텐서로 저장할 수 있지만, 이미지 텐서는 항상 3D이며, 회색조 (gray scale) 이미지에는 1차원 색상 채널이 있다. $256 \times 256$ 크기의 128개 회색조 이미지가 모인 배치 한 개는 (128, 256, 256, 1) 모양으로 된 텐서, 128개 색상 이미지로 이뤄진 배치 한 개는 (128, 256, 256, 3) 모양으로 된 텐서로 저장할 수 있다.
+
+
+```{r}
+
 ```
