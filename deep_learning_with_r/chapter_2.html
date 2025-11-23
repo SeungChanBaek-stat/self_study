@@ -451,22 +451,22 @@ test_labels = to_categorical(test_labels)</code></pre>
 <h3>모델 훈련데이터 적합</h3>
 <pre class="r"><code>network %&gt;% fit(train_images, train_labels, epochs = 5, batch_size = 128)</code></pre>
 <pre><code>## Epoch 1/5
-## 469/469 - 3s - loss: 0.2615 - accuracy: 0.9244 - 3s/epoch - 7ms/step
+## 469/469 - 4s - loss: 0.2537 - accuracy: 0.9266 - 4s/epoch - 8ms/step
 ## Epoch 2/5
-## 469/469 - 2s - loss: 0.1037 - accuracy: 0.9689 - 2s/epoch - 4ms/step
+## 469/469 - 2s - loss: 0.1026 - accuracy: 0.9695 - 2s/epoch - 4ms/step
 ## Epoch 3/5
-## 469/469 - 2s - loss: 0.0680 - accuracy: 0.9793 - 2s/epoch - 4ms/step
+## 469/469 - 2s - loss: 0.0685 - accuracy: 0.9795 - 2s/epoch - 4ms/step
 ## Epoch 4/5
-## 469/469 - 2s - loss: 0.0495 - accuracy: 0.9856 - 2s/epoch - 4ms/step
+## 469/469 - 2s - loss: 0.0492 - accuracy: 0.9849 - 2s/epoch - 4ms/step
 ## Epoch 5/5
-## 469/469 - 2s - loss: 0.0375 - accuracy: 0.9889 - 2s/epoch - 4ms/step</code></pre>
+## 469/469 - 2s - loss: 0.0378 - accuracy: 0.9885 - 2s/epoch - 4ms/step</code></pre>
 <pre class="r"><code>metrics = network %&gt;% evaluate(test_images, test_labels)</code></pre>
-<pre><code>## 313/313 - 1s - loss: 0.0646 - accuracy: 0.9796 - 901ms/epoch - 3ms/step</code></pre>
+<pre><code>## 313/313 - 1s - loss: 0.0680 - accuracy: 0.9798 - 949ms/epoch - 3ms/step</code></pre>
 <pre class="r"><code>metrics</code></pre>
 <pre><code>##       loss   accuracy 
-## 0.06458848 0.97960001</code></pre>
+## 0.06804412 0.97979999</code></pre>
 <pre class="r"><code>network %&gt;% predict(test_images[1:10,]) %&gt;% k_argmax()</code></pre>
-<pre><code>## 1/1 - 0s - 97ms/epoch - 97ms/step</code></pre>
+<pre><code>## 1/1 - 0s - 123ms/epoch - 123ms/step</code></pre>
 <pre><code>## tf.Tensor([7 2 1 0 4 1 4 9 5 9], shape=(10), dtype=int64)</code></pre>
 </div>
 </div>
@@ -656,6 +656,341 @@ depth, 즉 색 깊이 또는 색심도)라는 세 가지 차원이 있다. 회�
 크기의 128개 회색조 이미지가 모인 배치 한 개는 (128, 256, 256, 1)
 모양으로 된 텐서, 128개 색상 이미지로 이뤄진 배치 한 개는 (128, 256,
 256, 3) 모양으로 된 텐서로 저장할 수 있다.</p>
+</div>
+<div id="section-1" class="section level3">
+<h3>2.2.12</h3>
+<p>비디오 데이터는 5D 텐서가 필요한 몇 가지 유형의 실제 데이터 중
+하나이다. 비디오는 프레임이 연달아 있는 형태로 이해할 수 있으며, 각
+프레임은 컬러 이미지이다. 각 프레임은 3D 텐서(높이, 너비, 색상 심도)에
+저장될 수 있고, 연속된 프레임은 4D 텐서 (프레임, 높이, 너비, 색상
+심도)에 저장할 수 있다. 따라서 서로 다른 비디오들로 구성된 배치를 5D
+텐서 모양(표본, 프레임, 높이, 폭, 색상 심도)에 저장할 수 있다.</p>
+</div>
+</div>
+<div id="신경망의-장비-텐서-연산" class="section level2">
+<h2>2.3 신경망의 장비 : 텐서 연산</h2>
+<p>모든 컴퓨터 프로그램은 궁극적으로 이항 입력에 대한 작은 이항
+연산(AND, OR, NOR 등)들로 구성된 집합으로 축소될 수 있으므로 심층
+신경망에서 학습한 모든 변환도 텐서에 적용되는 소수의 수치 데이터에 관한
+텐서 연산으로 줄일 수 있다. 예를 들어, 텐서를 더하거나 텐서를 곱하는
+등의 작업을 할 수 있다.</p>
+<pre class="r"><code>layer_dense(units = 512, activation = &quot;relu&quot;)</code></pre>
+<p>이 계층은 2D 텐서를 입력으로 받아 다른 2D 텐서를 반환하는 함수로
+해석될 수 있다. 구체적으로 함수는 다음과 같다.</p>
+<pre class="r"><code>output = relu(dot(W, input) + b)</code></pre>
+<p>이 함수를 풀이해보면, input이라는 이름을 지닌 텐서와 <span class="math inline">\(\mathbf{W}\)</span>라는 이름을 지닌 텐서사이의
+내적(dot) 그리고 2D 텐서와 벡터 <span class="math inline">\(b\)</span>
+사이의 덧셈(+), 마지막으로 렐루(ReLU)연산이라는 세 가지 텐서 연산이
+있다. <span class="math inline">\(\text{relu}(\mathbf{x}) =
+\text{max}(\mathbf{x}, 0)\)</span>이다.</p>
+<div id="원소별-연산" class="section level3">
+<h3>2.3.1 원소별 연산</h3>
+<p>렐루 연산과 덧셈은 원소별(element-wise)연산이다. 즉, 텐서의 각
+성분(entry, 즉 원소)에 독립적으로 적용되는 연산이다. 그러므로 이러한
+작업은 대량 병렬 구현(벡터화된 구현, 1970~1990년의 벡터 프로세서를
+사용하던 슈퍼컴퓨터 아키텍처에서 나온 용어)에 매우 적합하다.</p>
+<p>원소 단위 연산을 단순하게 R로 구현하려면, 원소 단위 렐루 연산의
+단순한 구현과 같이 <code>for</code> 루프를 사용해야 한다.</p>
+<pre class="r"><code># Generate a 4x4 matrix with random values from a standard normal distribution
+x_mvn = matrix(rnorm(5 * 5), nrow = 5, ncol = 5)
+y_mvn = matrix(rnorm(5 * 5), nrow = 5, ncol = 5)
+print(x_mvn)</code></pre>
+<pre><code>##            [,1]       [,2]       [,3]       [,4]       [,5]
+## [1,]  0.6081217 -0.1167241  0.1673030 -1.0589121  0.1240761
+## [2,] -0.2702992  0.6853641 -0.3050337  0.5327392 -0.9954749
+## [3,] -1.0389289 -0.3122235 -1.5281606  0.7013630  0.5914563
+## [4,]  2.0552292 -0.8146977 -0.2066876  0.9167839  1.2316093
+## [5,] -0.2687604 -0.1449598 -0.3099572 -1.4932409 -0.9695318</code></pre>
+<pre class="r"><code>naive_relu = function(x){
+  for (i in 1:nrow(x)){
+    for (j in 1:ncol(x)){
+      x[i,j] = max(x[i,j], 0)
+    }
+  }
+  return(x)
+}
+
+x_relu = naive_relu(x_mvn)
+print(x_mvn)</code></pre>
+<pre><code>##            [,1]       [,2]       [,3]       [,4]       [,5]
+## [1,]  0.6081217 -0.1167241  0.1673030 -1.0589121  0.1240761
+## [2,] -0.2702992  0.6853641 -0.3050337  0.5327392 -0.9954749
+## [3,] -1.0389289 -0.3122235 -1.5281606  0.7013630  0.5914563
+## [4,]  2.0552292 -0.8146977 -0.2066876  0.9167839  1.2316093
+## [5,] -0.2687604 -0.1449598 -0.3099572 -1.4932409 -0.9695318</code></pre>
+<pre class="r"><code>print(x_relu)</code></pre>
+<pre><code>##           [,1]      [,2]     [,3]      [,4]      [,5]
+## [1,] 0.6081217 0.0000000 0.167303 0.0000000 0.1240761
+## [2,] 0.0000000 0.6853641 0.000000 0.5327392 0.0000000
+## [3,] 0.0000000 0.0000000 0.000000 0.7013630 0.5914563
+## [4,] 2.0552292 0.0000000 0.000000 0.9167839 1.2316093
+## [5,] 0.0000000 0.0000000 0.000000 0.0000000 0.0000000</code></pre>
+<p>덧셈도 같은 방식으로 처리한다.</p>
+<pre class="r"><code>naive_add = function(x,y){
+  for (i in 1:nrow(x)){
+    for (j in 1:ncol(x)){
+      x[i,j] = x[i,j] + y[i,j]
+    }
+  }
+  return(x)
+}
+
+x_add = naive_add(x_mvn, y_mvn)
+print(x_add)</code></pre>
+<pre><code>##            [,1]        [,2]        [,3]       [,4]        [,5]
+## [1,]  0.1653009  0.81295344 -1.12735759 -1.2213464  0.01548792
+## [2,]  0.7603649 -0.08865676  1.13665535  1.4272404 -0.80480709
+## [3,] -1.3582835 -1.73643003 -1.66740500 -0.8796313  1.53771517
+## [4,]  1.3359249 -1.64604817  0.03823922  0.7552283  1.43929198
+## [5,] -0.1226469  1.25420006 -0.52576568 -1.5365721 -1.25810918</code></pre>
+<p>같은 원리로 원소 단위로 곱셈과 뺄셈 등을 할 수 있다.</p>
+<p>실제로는 R 배열들을 사용해 다룰 때, 최적화된 내장형 R 함수로 사용할
+수 있는데, 이러한 내장 함수들은 무거운 작업을 BLAS 구현(Basic Linear
+Algebra Subprograms, 기본 선형 대수 서브프로그램)에 위임한다(따라서
+BLAS를 설치해 둬야 한다). BLAS는 포트란 또는 C에서 일반적으로 구현되는
+효율적인 저수준 병렬 처리 방식 텐서 조작 루틴이다.</p>
+<p>R에서는 다음과 같이 원래의 원소별 연산들을 추종할 수 있으며, 연산들은
+빠르게 처리될 것이다.</p>
+<pre class="r"><code>z = x_mvn + y_mvn # 원소별 덧셈
+print(z)</code></pre>
+<pre><code>##            [,1]        [,2]        [,3]       [,4]        [,5]
+## [1,]  0.1653009  0.81295344 -1.12735759 -1.2213464  0.01548792
+## [2,]  0.7603649 -0.08865676  1.13665535  1.4272404 -0.80480709
+## [3,] -1.3582835 -1.73643003 -1.66740500 -0.8796313  1.53771517
+## [4,]  1.3359249 -1.64604817  0.03823922  0.7552283  1.43929198
+## [5,] -0.1226469  1.25420006 -0.52576568 -1.5365721 -1.25810918</code></pre>
+<pre class="r"><code>z = pmax(z, 0 ) # 원소별 렐루
+print(z)</code></pre>
+<pre><code>##           [,1]      [,2]       [,3]      [,4]       [,5]
+## [1,] 0.1653009 0.8129534 0.00000000 0.0000000 0.01548792
+## [2,] 0.7603649 0.0000000 1.13665535 1.4272404 0.00000000
+## [3,] 0.0000000 0.0000000 0.00000000 0.0000000 1.53771517
+## [4,] 1.3359249 0.0000000 0.03823922 0.7552283 1.43929198
+## [5,] 0.0000000 1.2542001 0.00000000 0.0000000 0.00000000</code></pre>
+</div>
+<div id="차원이-서로-다른-텐서와-관련된-연산" class="section level3">
+<h3>2.3.2 차원이 서로 다른 텐서와 관련된 연산</h3>
+<p>텐서의 덧셈시에, 두 개 텐서의 모양(shape)이 다른 경우, R의
+<code>sweep()</code> 함수를 사용해 볼 수 있다.</p>
+<p>R의 <code>sweep()</code>함수를 사용하면 더 높은 차원의 텐서와 낮은
+차원의 텐서 간에 연산을 수행할 수 있다. <code>sweep()</code>을 사용하면
+행렬에 벡터를 더하는 덧셈을 다음과 같이 수행할 수 있다.</p>
+<pre class="r"><code>set.seed(42)
+y_vec = matrix(rnorm(5), nrow = 5, ncol = 1)
+# y_vec = as.vector(y_vec)
+print(x_mvn)</code></pre>
+<pre><code>##            [,1]       [,2]       [,3]       [,4]       [,5]
+## [1,]  0.6081217 -0.1167241  0.1673030 -1.0589121  0.1240761
+## [2,] -0.2702992  0.6853641 -0.3050337  0.5327392 -0.9954749
+## [3,] -1.0389289 -0.3122235 -1.5281606  0.7013630  0.5914563
+## [4,]  2.0552292 -0.8146977 -0.2066876  0.9167839  1.2316093
+## [5,] -0.2687604 -0.1449598 -0.3099572 -1.4932409 -0.9695318</code></pre>
+<pre class="r"><code>print(y_vec)</code></pre>
+<pre><code>##            [,1]
+## [1,]  1.3709584
+## [2,] -0.5646982
+## [3,]  0.3631284
+## [4,]  0.6328626
+## [5,]  0.4042683</code></pre>
+<pre class="r"><code>sweep_ex = sweep(x_mvn, 1, y_vec, &#39;+&#39;) # 여기서 2번째 인수는 y_vec을 스윕시킬 x_mvn의 차원을 지정한다.
+print(sweep_ex)</code></pre>
+<pre><code>##            [,1]       [,2]        [,3]        [,4]       [,5]
+## [1,]  1.9790802  1.2542344  1.53826141  0.31204631  1.4950346
+## [2,] -0.8349973  0.1206659 -0.86973189 -0.03195894 -1.5601730
+## [3,] -0.6758004  0.0509049 -1.16503221  1.06449144  0.9545847
+## [4,]  2.6880918 -0.1818351  0.42617504  1.54964650  1.8644719
+## [5,]  0.1355079  0.2593085  0.09431111 -1.08897257 -0.5652634</code></pre>
+<p>여기서 2번째 인수는 y_vec을 스윕시킬 x_mvn의 차원을 지정한다. 마지막
+인수(여기서는 +)는 스윕하는 중에 수행할 연산이며, 두 개 인수로 이루어진
+함수여야 한다. 2번째 인수가 1이면 행에 대해서 y_vec을 주르륵
+브로드캐스팅하여 덧셈, 2이면 열에 대해서 y_vec을 주르륵 브로드캐스팅하여
+덧셈.</p>
+<p>몇 개 차원이든 스윕 적용가능하며, 두 배열을 통해 벡터화된 연산을
+구현하는 함수를 적용할 수 있다. 다음 예제는 <code>pmax()</code> 함수를
+사용해 4D 텐서의 마지막 두 차원을 대상으로 2D 텐서를 스윕한다.</p>
+<pre class="r"><code>x = array(round(runif(64* 3* 32* 10, 0, 9)), dim = c(64, 3, 32, 10))
+y = array(5, dim = c(32, 10))
+
+z = sweep(x, c(3,4), y, pmax)
+
+print(dim(z))</code></pre>
+<pre><code>## [1] 64  3 32 10</code></pre>
+<pre class="r"><code># print(z[20, 1, , ])</code></pre>
+</div>
+<div id="텐서-내적" class="section level3">
+<h3>2.3.3 텐서 내적</h3>
+<p>내적 연산은 텐서 곱(tensor product)이라고도 하며, (원소별 곱과 다른
+개념이다)가장 일반적이고, 유용한 텐서 연산이다. 원소별 연산과 달리 입력
+텐서의 성분을 결합한다.</p>
+<p>R에서는 원소별 곱을 * 연산자로 처리하는 반면, 내적(dot products,
+점곱)에는 %*% 연산자를 사용한다.</p>
+<pre class="r"><code>x_vec = runif(10, -9, 9) ; y_vec = runif(10, -9, 9)
+print(x_vec)</code></pre>
+<pre><code>##  [1]  5.9928338  6.0067059  4.9800132  0.0446156  4.2085269  2.3051687
+##  [7]  4.7209310  6.7863161  6.2575111 -6.1777937</code></pre>
+<pre class="r"><code>print(y_vec)</code></pre>
+<pre><code>##  [1]  1.44210634 -8.47693190  1.16174335  2.60661640 -3.74714650 -7.81771058
+##  [7]  7.97402989  3.08974617  8.62053815 -0.04803351</code></pre>
+<pre class="r"><code>z = x_vec %*% y_vec
+print(z)</code></pre>
+<pre><code>##          [,1]
+## [1,] 42.68724</code></pre>
+<pre class="r"><code>naive_vector_dot = function(x, y){
+  z = 0
+  for (i in 1:length(x)){
+    z = z + x[[i]] * y[[i]] 
+    # x[2] 는 x = (2,3,1,4,5)의 경우 (3)을 반환한다. 그러나 x[[2]]는 3을 반환한다. 즉 [[]] 연산자는 원소 그자체를 꺼낸다.
+  }
+  return(z)
+}
+z = naive_vector_dot(x_vec, y_vec)
+print(z)</code></pre>
+<pre><code>## [1] 42.68724</code></pre>
+<p>두 벡터 사이의 내적(dot product, 즉 스칼라 곱)은 스칼라이고, 원소
+개수가 서로 같은 벡터만 내적과 호환된다는 것을 알 수 있다.</p>
+<p>행렬 <span class="math inline">\(\mathbf{x}\)</span>와 벡터 <span class="math inline">\(\mathbf{y}\)</span> 사이의 내적을 취할 수도 있다.
+벡터는 <span class="math inline">\(\mathbf{y}\)</span>와 <span class="math inline">\(\mathbf{x}\)</span> 의 행들 사이의 내적이 되는
+벡터를 반환한다. 다음과 같이 구현할 수 있다.</p>
+<pre class="r"><code>naive_matrix_dot = function(x, y){
+  z = rep(0, nrow(x))
+  for (i in 1:nrow(x)){
+    for (j in 1:ncol(x)){
+      z[[i]] = z[[i]] + x[[i,j]] * y[[j]]
+    }
+  }
+  return(z)
+}
+set.seed(42)
+x_mat = array(runif(40, -9, 9), dim = c(4,10))
+z = naive_matrix_dot(x_mat, y_vec)
+print(z)</code></pre>
+<pre><code>## [1] -156.1132  127.5975 -191.2830  149.7230</code></pre>
+<pre class="r"><code>print(typeof(z))</code></pre>
+<pre><code>## [1] &quot;double&quot;</code></pre>
+<pre class="r"><code>print(class(z))</code></pre>
+<pre><code>## [1] &quot;numeric&quot;</code></pre>
+<pre class="r"><code>naive_matrix_dot = function(x, y){
+  z = rep(0, nrow(x))
+  for (i in 1:nrow(x)){
+    z[[i]] = naive_vector_dot(x[i,], y)
+  }
+  return(z)
+}
+set.seed(42)
+x_mat = array(runif(40, -9, 9), dim = c(4,10))
+z = naive_matrix_dot(x_mat, y_vec)
+print(z)</code></pre>
+<pre><code>## [1] -156.1132  127.5975 -191.2830  149.7230</code></pre>
+<p>내적은 임의의 수의 축을 가진 텐서로 일반화되며, 이 경우 가장 일반적인
+애플리케이션은 두 행렬 사이의 내적이라고 할 수 있다.</p>
+<pre class="r"><code>naive_matrix_dot = function(x,y){
+  z = matrix(0, nrow = nrow(x), ncol = ncol(y))
+  for (i in 1:nrow(x)){
+    for (j in 1:ncol(y)){
+      row_x = x[i, ] ; col_y = y[,j]
+      z[i, j] = naive_vector_dot(row_x, col_y)
+    }
+  }
+  return(z)
+}
+
+set.seed(42)
+x_mat = array(runif(20, -9, 9), dim = c(4,5))
+y_mat = array(runif(10, -9, 9), dim = c(5,2))
+z = naive_matrix_dot(x_mat, y_mat)
+z_r = x_mat %*% y_mat
+print(z == z_r)</code></pre>
+<pre><code>##      [,1] [,2]
+## [1,] TRUE TRUE
+## [2,] TRUE TRUE
+## [3,] TRUE TRUE
+## [4,] TRUE TRUE</code></pre>
+<p>더 일반적으로 2D 사례와 관련해서는 설명한 대로 모양 호환성에 대한
+동일한 규칙에 따라 더 높은 차원의 텐서 간 내적을 가져올 수 있다.</p>
+<pre class="r"><code>(a, b, c, d) . (d) -&gt; (a, b, c)
+(a, b, c, d) . (d, e) -&gt; (a, b, c, e)</code></pre>
+</div>
+<div id="텐서-모양-변경" class="section level3">
+<h3>2.3.4 텐서 모양 변경</h3>
+<p>세 번째 유형의 텐서 연산은 텐서 모양 변경(tensor reshaping)이다. 텐서
+모양 변경을 첫 번째 신경망 예제에 나오는 조밀 계층에 사용하지는
+않았지만, 망에 입력하기 전, 숫자 데이터를 전처리할 때는 사용했었다.</p>
+<pre class="r"><code>train_images = array_reshape(train_images, c(60000, 28 * 28))</code></pre>
+<p><code>dim -&lt; ()</code> 함수보다는 <code>array_reshape()</code>
+함수를 사용해 배열의 모양을 변경한다는 점에 주목하자. 이는 행-중심
+구문(row-major semantics)을 사용해 데이터가 재해석되도록 하기 위한
+것으로 (R의 기본인 열 중심 구문과 반대), 한편으로 케라스가 호출한 수치
+처리 라이브러리(NumPy 및 텐서플로 등)가 배열 차원을 해석하는 방식과
+호환된다. 케라스에 전달될 R 배열을 다시 만들 때는 항상
+<code>array_reshape()</code>함수를 사용해야 한다.</p>
+<p>텐서 모양 변경이란, 행과 열을 표적의 모양과 일치하도록 재조정하는
+것을 말한다. 당연히, 모양이 변경된 텐서에 사용하는 계수들의 총 개수는
+초기 텐서와 동일해야 한다. 다음과 같은 예제를 통해 이러한 모양 변경을
+가장 잘 이해할 수 있다.</p>
+<pre class="r"><code>x = matrix(c(0, 1, 2, 3, 4, 5), nrow = 3, ncol = 2, byrow = TRUE)
+x</code></pre>
+<pre><code>##      [,1] [,2]
+## [1,]    0    1
+## [2,]    2    3
+## [3,]    4    5</code></pre>
+<pre class="r"><code>x = array_reshape(x, dim = c(6,1))
+x</code></pre>
+<pre><code>##      [,1]
+## [1,]    0
+## [2,]    1
+## [3,]    2
+## [4,]    3
+## [5,]    4
+## [6,]    5</code></pre>
+<pre class="r"><code>x = array_reshape(x, dim = c(2,3))
+x</code></pre>
+<pre><code>##      [,1] [,2] [,3]
+## [1,]    0    1    2
+## [2,]    3    4    5</code></pre>
+<p>흔히 발생하는 모양 변경의 특별한 경우는 전치(transpose)이다. 행렬의
+전치는 <code>x[i, ]</code>가 <code>x[ ,i]</code>로 되도록 행과 열을
+교환하는 것을 의미한다. 행렬을 전치하는 데는 <code>t()</code>함수를
+사용할 수 있다.</p>
+<pre class="r"><code>x = matrix(0, nrow = 300, ncol = 20)
+dim(x)</code></pre>
+<pre><code>## [1] 300  20</code></pre>
+<pre class="r"><code>x = t(x)
+dim(x)</code></pre>
+<pre><code>## [1]  20 300</code></pre>
+</div>
+<div id="텐서-연산의-기하학적-해석" class="section level3">
+<h3>2.3.5 텐서 연산의 기하학적 해석</h3>
+<p>텐서 연산에 의해 조작된 텐서들의 내용은 어떤 기하 공간에서 점들의
+좌표로 해석될 수 있기 때문에 모든 텐서 연산에는 기하학적 해석이
+따른다.</p>
+<p>일반적으로 어파인 변환, 회전, 척도 구성등과 같은 기본 기하 연산은
+텐서 연산으로 표현될 수 있다. 예를 들어, 각도 <span class="math inline">\(\theta\)</span>에 의한 2D 벡터의 회전은 <span class="math inline">\(2 \times 2\)</span>행렬<code>R = [u,v]</code> 를
+갖는 내적을 통해 이뤄질 수 있다. 여기서 <code>u</code>와
+<code>v</code>는 평면의 벡터가 된다. 즉,
+<code>u = [cos(theta), sin(theta)]</code>,
+<code>v = [-sin(theta), cos(theta)]</code> 이다.</p>
+</div>
+<div id="딥러닝의-기하학적-해석" class="section level3">
+<h3>2.3.6 딥러닝의 기하학적 해석</h3>
+<p>신경망이 전적으로 텐서 연산의 연쇄(chains of tensor operations)로
+구성되어 있고, 이러한 모든 텐서 연산이 입력 데이터의 기하학적 변환이라는
+것을 알았다. 따라서 일련의 간단한 단계를 통해 구현된 고차원 공간에서
+신경망을 매우 복잡한 기하학적 변환으로 해석할 수 있다.</p>
+<p>(종이 공 예시).. 즉, 종이 공 펴기란, 복잡할 정도로 많이 접힌 데이터
+다양하체(data manifolds)에 대한 깔끔한 표현을 찾는 머신러닝에 관한
+것이다. 지금쯤이면 여러분은 딥러닝이 탁월한 이유를 잘 직감할 수 있어야
+한다. 복잡한 기하학적 변환을 점진적으로 분해하여 기초 구성 요소들의 긴
+연쇄로 만드는 접근 방식이 필요하다는 점 말이다. 이는 종이 공을 펼칠 때
+인간이 따라야 할 전략과 거의 같다. 심층 망의 각 계층은 데이터를 약간
+풀어 펴는 변형을 하는 역할을 하는 셈이 되고, 깊게 겹쳐 쌓인 각 계층들이
+모여서 극도로 복잡한 펴기 과정을 다루기 쉽게 한다.</p>
+<p>즉, 종이 공이 접힌 각도나 횟수, 모양에 맞게 신경망 모형의 계층을
+구성한다면 적당한 양의 데이터가 주어졌을 때, 해당 종이 공을 펴지 않고도
+무슨 종이로 구성되어있는지 매우 정확하게 맞출 수 있을 것이다. 반대로
+계층을 적당하게 구성하지 못한다면 (계층수가 더 많거나 혹은 더 적거나,
+계층안의 퍼셉트론수가 적거나 많거나 등등) 앞서의 신경망 모형의 경우보다
+학습에 필요한 데이터양이 더 늘어날 수도 있으며, 혹은 학습 데이터양을
+아무리 많이 늘리더라도 학습이 잘 되지 않을 수도 있다.</p>
 </div>
 </div>
 </div>
