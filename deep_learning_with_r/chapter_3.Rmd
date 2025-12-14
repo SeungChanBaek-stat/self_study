@@ -309,26 +309,251 @@ layer_dense(units = 16, activation = "relu")
 output = relu(dot(W, input) + b)
 ```
 
+16개의 은닉 유닛을 가짐으로써 `W`가 `(입력_차원, 16)` 모양으로 된 가중치 행렬을 가짐을 의미한다. `W` 가 있는 내적은 입력 데이터를 16차원 표현 공간에 정사영한다(그런 다음, 편향 벡터 `b`를 추가하고, ReLU 연산을 적용한다). 표현 공간의 차원은 직관적으로 "내부 표현을 학습할 때 망이 가질 수 있는 자유의 정도"라는 식으로 이해할 수 있다. 더 많은 은닉유닛(더 높은 차원의 표현 공간)을 사용하면 망보다 복잡한 표현을 학습할 수 있지만, 망 계산 비용이 많이 들고, 원치 않는 패턴(훈련 데이터에서는 성능이 향상되는 패턴이지만, 테스트 데이터에서는 그렇지 않은 패턴)을 학습하게 될 수도 있다.
+
+이러한 조밀 계층 스택에는 두 가지 주요 아키텍처 결정이 필요하다.
+
+- 사용할 계층 수
+- 계층별로 선택할 은닉 유닛 수
+
+여기서 다루는 활성 함수는 다음과 같다. 중간 계층은 ReLU, 맨 끝 계층은 시그모이드를 활성함수로 사용하여 확률을 출력한다.
+
+- ReLU : 정류된 선형 유닛(rectified linear unit) 은 $f(x) = \text{max}(x,0)$ 의 함수로, 음인 값들을 0으로 만드는 함수이다.
+- Sigmoid : 시그모이드(sigmoid)는 $f(x) = \cfrac{1}{1+ e^{-x}}$의 함수로, 임의의 값을 $[0, 1]$ 구간으로 크게 축소함으로써 확률로 해석해 볼 여지가 있는 수치 형태로 출력한다(여기서 "확률로 해석해 볼 여지가 있는"에 주목해야 한다. 엄밀한 의미에서 시그모이드 값은 확률이라고 할 수는 없다.).
+
+#### 목록 3.3 모델 정의하기
+
+```{r}
+library(keras)
+
+model = keras_model_sequential() %>% 
+  layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% 
+  layer_dense(units = 16, activation = "relu") %>% 
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+마지막으로, 손실 함수와 최적화기를 선택해야 한다. 왜냐하면 지금 이항 분류 문제를 다루고 있는데, 현재의 망은 확률의 꼴로 출력하기 때문에 `binary_crossentropy`라는 손실 함수를 사용하는 편이 가장 바람직하다. 이는 유일하게 실행할 수 있는 선택이 아니다. 예를 들어, `mean_squared_error`가 그렇다. 하지만 교차 엔트로피는 일반적으로 확률을 산출하는 모델을 다룰 때 가장 좋은 선택이다. 교차 엔트로피는 정보 이론 분야에서 확률분포 사이의 거리를 측정하는 양이며, 이 경우에는 실제 분포와 예측 분포 사이의 거리를 측정한다.
+
+#### 목록 3.4 모델 컴파일하기
+
+```{r}
+model %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
+
+위의 모델 컴파일시에, 함수의 인수로서 사용자 정의 손실 함수나 메트릭 함수 또한 전달 가능하다.
+
+#### 목록 3.5 최적화기 구성하기(최적화기 파라미터 설정)
+
+```
+model %>% compile(
+  optimizer = optimizer_rmsprop(lr = 0.001),
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+```
 
 
+#### 목록 3.6 사용자 정의를 한 손실과 메트릭 사용하기(최적화기 파라미터 설정)
+
+```
+model %>% compile(
+  optimizer = optimizer_rmsprop(lr = 0.001),
+  loss = loss_binary_crossentropy,
+  metrics = metric_binary_accuracy
+)
+```
+
+### 3.4.4 접근 방식 검증하기
+
+전에 본 적이 없는 데이터에 대한 모델의 정확도를 훈련 중에 관측하기 위해 원래의 훈련 데이터에서 1만개 표본을 설정해 검증 집합을 작성한다.
+
+#### 목록 3.7 검증 집합 따로 설정하기
+
+```{r}
+val_indices = 1:10000
+
+x_val = x_train[val_indices, ]
+partial_x_train = x_train[-val_indices, ]
+y_val = y_train[val_indices]
+partial_y_train = y_train[-val_indices]
+```
+
+#### 목록 3.8 모델 훈련하기
+
+```{r}
+model %>% compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
+history = model %>% fit(
+  partial_x_train,
+  partial_y_train,
+  epochs = 20,
+  batch_size = 512,
+  validation_data = list(x_val, y_val)
+)
+```
+
+`fit()`을 호출하면 `history` 객체를 반환한다는 점에 주의한다. 다음을 살펴보자.
+
+```{r}
+str(history)
+```
+
+`history`객체는 모델(`history$params`)뿐 아니라 관측되는 각 메트릭(`history$metrics`)에 대한 데이터를 저장하는 데 사용되는 파라미터를 포함한다.
+
+`history`객체에는 에포크별로 훈련 계량 및 검증 계량을 시각화할 수 있는 `plot()`메서드가 있다.
+
+```{r}
+plot(history)
+```
+
+#### `plot()` 메서드를 사용한 훈련 내역
+
+훈련 이력 객체의 `plot()` 메서드는 `ggplot2`를 사용하여 그래프를 그릴 수 있다(사용하지 않는 경우에는 기본 그래픽이 사용된다). 그림에는 지정된 메트릭과 손실이 모두 포함된다. 열 개 이상의 에포크가 있다면 매끄러운 선이 그려지게 된다. `plot()` 메서드의 다양한 인수를 사용하면, 이러한 동작을 모두 사용자 정의할 수 있다. 사용자 정의 시각화를 작성하려면, 이력에서 `as.data.frame()`메서드를 호출하여 각 계량에 대한 요소 및 학습 버전 검증을 포함한 데이터 프레임을 확보해야 한다.
+
+```{r}
+history_df = as.data.frame(history)
+str(history_df)
+```
+
+훈련 손실은 모든 에포크마다 줄어들고, 훈련의 정확도는 증가한다. 이것이 경사 하강 최적화(손실이 최소가 되게끔 가중치를 갱신하는 과정)를 실행할 때 기대할 수 있는 점이다. 검증 손실과 정확도는 훈련 시와 다르다. 오히려 네 번째 에포크에서 가장 좋은 성능을 내는 것처럼 보인다. 이것이 과적합의 예가 된다. 훈련 데이터에서 더 잘 수행되는 모델이라고 해서 이전에는 전혀 본 적이 없는 데이터에서 더 잘 수행하는 모델이 된다고 보장되지는 못한다. 이를 과적합(overfitting)이라고 한다. 두 번째 에포크 이후에 훈련 데이터가 과도하게 최적화돼 있고, 훈련 데이터에만 특정된 표현을 학습하게 되어, 훈련 집합이 아닌 데이터에까지 일반화를 하지 못하게 되는 것이다.
+
+이 경우, 과적합을 방지하기 위해 세 개 에포크 이후에 훈련을 중단할 수 있다. 일반적으로 과적합을 줄이기 위해 다양한 기법을 사용할 수 있다. 이에 대해서는 4장에서 다루게 된다.
+
+네 개 에포크를 대상으로 삼아 밑바닥에서부터 새로운 망을 훈련한 후, 테스트 데이터를 사용하여 평가해본다.
+
+#### 목록 3.9 모델을 밑바닥에서부터 재훈련하기
+
+```{r}
+# 필요한 경우 Keras 라이브러리를 먼저 불러옵니다.
+??keras
+clear_se
+# tf$config$experimental$reset_memory_stats("GPU:0")
+
+keras::k_clear_session()
+keras
+
+detach("package:tensorflow", unload = TRUE)
+detach("package:keras", unload = TRUE)
+```
+
+```{r}
+# # 혹시 이전 세션/그래프 남아있으면 비우기
+keras::k_clear_session()
+# tf$config$experimental$reset_memory_stats("GPU:0")
+
+# 필요한 경우 Keras 라이브러리를 먼저 불러옵니다.
+library(keras)
+
+# Keras 세션을 지웁니다.
+keras::backend::clear_session()
+
+# 더 이상 사용하지 않는 모델 및 텐서 객체 제거
+rm(list = ls())
+
+# 가비지 컬렉션 실행
+gc()
 
 
+model = keras_model_sequential() %>% 
+  layer_dense(units = 16, activation = "relu", input_shape = c(10000)) %>% 
+  layer_dense(units = 16, activation = "relu") %>% 
+  layer_dense(units = 1, activation = "sigmoid")
 
+model %>%  compile(
+  optimizer = "rmsprop",
+  loss = "binary_crossentropy",
+  metrics = c("accuracy")
+)
 
+model %>% fit(x_train, y_train, epochs = 4, batch_size = 256)
+## 해당 코드는 Vram이 높은 상황에서 실행가능하다
+# results = model %>% evaluate(x_test, y_test)
+```
 
+```{r}
+eval_in_batches <- function(model, x, y, batch_size = 256) {
+  n <- nrow(x)
+  n_batches <- ceiling(n / batch_size)
+  
+  total_loss <- 0
+  total_acc  <- 0
+  total_n    <- 0
+  
+  for (b in seq_len(n_batches)) {
+    idx_start <- (b - 1) * batch_size + 1
+    idx_end   <- min(b * batch_size, n)
+    idx <- idx_start:idx_end
+    
+    x_batch <- x[idx, , drop = FALSE]
+    y_batch <- y[idx]
+    
+    metrics <- model %>% evaluate(
+      x_batch, y_batch,
+      verbose = 0
+    )
+    # keras::evaluate()는 named vector 반환 (loss, accuracy)
+    batch_n <- length(idx)
+    total_loss <- total_loss + metrics["loss"] * batch_n
+    total_acc  <- total_acc  + metrics["accuracy"] * batch_n
+    total_n    <- total_n + batch_n
+  }
+  
+  c(
+    loss     = as.numeric(total_loss / total_n),
+    accuracy = as.numeric(total_acc / total_n)
+  )
+}
 
+results <- eval_in_batches(model, x_test, y_test, batch_size = 256)
+```
 
+최종결과는 다음과 같다.
 
+```{r}
+results
+```
 
+### 3.4.5 훈련된 망을 사용해 신규 데이터에 대한 예측 생성하기
 
+```{r}
+model %>% predict(x_test[1:10, ])
+```
 
+여기서 망은 일부 표본(0.99 이상 0.01 이하)에서는 확신을 보이지만, 그 밖의 표본(0.6, 0.8)에서는 확신을 보이지 않음을 알 수 있다.
 
+### 3.4.6 추가 실험
 
+다음에 이어 나오는 실험들은 아직 개선을 해야 할 부분이 있지만, 상당히 합리적으로 아키텍처를 선택했다는 점을 확신하는 데는 도움을 줄 수 있다.
 
+- 이 책에서는 은닉 계층 2개를 사용했다. 한 개 은닉 계층 또는 세 개 은닉 계층을 사용해 검증 및 테스트 정확도에 미치는 영향을 확인해 보자.
 
+- 32 유닛이나 64 유닛 등과 같이 은닉 유닛이 적거나 많은 계층을 사용해보자.
 
+- `binary_crossentropy` 대신 `mse`라는 손실 함수를 사용해보자.
 
+- `relu` 대신 `tanh` 활성함수를 사용해보자.
 
+### 3.4.7 결론
 
+이 예제로부터 배워야 할 사항은 다음과 같다.
+
+- 신경망에 텐서와 같은 것을 공급할 수 있으려면 원시 데이터에 대한 전처리 작업을 많이 해 둬야 한다. 단어 시퀀스는 이진 벡터로 부호화될 수 있지만, 다른 부호화 옵션도 있다.
+
+- ReLU 활성화가 있는 조밀 계층 스택은 감성 분류를 비롯한 다양한 문제를 해결할 수 있으므로 자주 사용하게 될 것이다.
+
+- 망은 이항 분류 문제(출력 클래스가 두 개)에서 하나의 유닛과 시그모이드 활성이 있는 조밀 계층으로 끝나야 한다. 망의 출력은 0과 1사이의 스칼라여야 하며, 확률을 부호화해야 한다.
+
+- 이항 분류 문제와 같은 스칼라 시그모이드 출력을 사용하면, 손실 함수는 `binary_crossentropy`가 된다.
+
+- `rmsprop`이라는 최적화기는 어떤 문제에도 충분히 대응할 수 있는 선택지이다. 걱정할 필요가 전혀 없다.
+
+- 신경망이 훈련 데이터에 익숙해질수록 과적합되어 이전에는 볼 수 없었던 데이터에 대한 결과가 점점 악화된다. 따라서 훈련 집합의 외부에 있는 데이터의 성능을 항상 관찰해야 한다.
 
 
