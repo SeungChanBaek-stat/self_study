@@ -1,0 +1,6 @@
++-------------------- - - - - - +
+| This is a small example |
+| text file which contains |
+| 6 lines including border |
+| lines using "+"s,"-"s,"|"s. |
++-------------------- - - - - -+
