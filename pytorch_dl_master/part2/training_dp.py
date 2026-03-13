@@ -73,26 +73,49 @@ class LunaTrainingApp:
             nargs="?",
             default="dwlpt",
         )
+        
+        parser.add_argument(
+            "--save-path",
+            default="luna_best.pt",
+            help="Checkpoint filename for best model",
+        )
+        
+        parser.add_argument(
+            "--gpu-ids",
+            default=None,
+            help='Comma-separated GPU ids to use, e.g. "0" or "0,1,2,3". Default: all visible GPUs.',
+        )
+        
         self.cli_args = parser.parse_args(sys_argv)
+        
+        if self.cli_args.gpu_ids is None:
+            self.gpu_ids = list(range(torch.cuda.device_count())) if torch.cuda.is_available() else []
+        else:
+            self.gpu_ids = [int(x.strip()) for x in self.cli_args.gpu_ids.split(",") if x.strip() != ""]
+
         self.time_str = datetime.datetime.now().strftime("%Y-%m-%d_%H.%M.%S")
 
         self.trn_writer = None
         self.val_writer = None
         self.totalTrainingSamples_count = 0
+        self.best_val_loss = float("inf")
 
-        self.use_cuda = torch.cuda.is_available()
-        self.device = torch.device("cuda" if self.use_cuda else "cpu")
+        self.use_cuda = torch.cuda.is_available() and len(self.gpu_ids) > 0
+        self.device = torch.device(f"cuda:{self.gpu_ids[0]}" if self.use_cuda else "cpu")
 
         self.model = self.initModel()
         self.optimizer = self.initOptimizer()
 
     def initModel(self):
         model = LunaModel()
+
         if self.use_cuda:
-            log.info(f"Using CUDA; {torch.cuda.device_count()} devices.")
-            if torch.cuda.device_count() > 1:
-                model = nn.DataParallel(model)
+            log.info(f"Using CUDA; gpu_ids={self.gpu_ids}")
             model = model.to(self.device)
+
+            if len(self.gpu_ids) > 1:
+                model = nn.DataParallel(model, device_ids=self.gpu_ids, output_device=self.gpu_ids[0])
+
         return model
 
     def initOptimizer(self):
@@ -107,13 +130,16 @@ class LunaTrainingApp:
 
         batch_size = self.cli_args.batch_size
         if self.use_cuda:
-            batch_size *= torch.cuda.device_count()
+            batch_size *= len(self.gpu_ids)
 
         train_dl = DataLoader(
             train_ds,
             batch_size=batch_size,
+            shuffle=True,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
+            persistent_workers=(self.cli_args.num_workers > 0),
+            prefetch_factor=2 if self.cli_args.num_workers > 0 else None,
         )
 
         return train_dl
@@ -138,13 +164,15 @@ class LunaTrainingApp:
 
         batch_size = self.cli_args.batch_size
         if self.use_cuda:
-            batch_size *= torch.cuda.device_count()
+            batch_size *= len(self.gpu_ids)
 
         val_dl = DataLoader(
             val_ds,
             batch_size=batch_size,
             num_workers=self.cli_args.num_workers,
             pin_memory=self.use_cuda,
+            persistent_workers=(self.cli_args.num_workers > 0),
+            prefetch_factor=2 if self.cli_args.num_workers > 0 else None,
         )
 
         return val_dl
@@ -166,6 +194,9 @@ class LunaTrainingApp:
         train_dl = self.initTrainDl()
         val_dl = self.initValDl()
 
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        model_dir = os.path.join(base_dir, "models")
+
         for epoch_ndx in range(1, self.cli_args.epochs + 1):
 
             log.info(
@@ -175,7 +206,7 @@ class LunaTrainingApp:
                     len(train_dl),
                     len(val_dl),
                     self.cli_args.batch_size,
-                    (torch.cuda.device_count() if self.use_cuda else 1),
+                    (len(self.gpu_ids) if self.use_cuda else 1),
                 )
             )
 
@@ -184,6 +215,26 @@ class LunaTrainingApp:
 
             valMetrics_t = self.doValidation(epoch_ndx, val_dl)
             self.logMetrics(epoch_ndx, "val", valMetrics_t)
+            
+            val_loss = valMetrics_t[METRICS_LOSS_NDX].mean().item()
+            if val_loss <= self.best_val_loss:
+                self.best_val_loss = val_loss
+                if isinstance(self.model, (nn.DataParallel, DDP)):
+                    save_obj = self.model.module.state_dict()
+                else:
+                    save_obj = self.model.state_dict()
+                
+
+                os.makedirs(model_dir, exist_ok=True)
+                model_save_path = os.path.join(model_dir, self.cli_args.save_path)                    
+
+                torch.save(save_obj, model_save_path)
+                log.info(f"Saved new best checkpoint to {self.cli_args.save_path}")
+                
+        model_save_path = os.path.join(model_dir, "luna_final")                    
+
+        torch.save(save_obj, model_save_path)
+        log.info(f"Saved final checkpoint to {model_save_path}")
 
         if hasattr(self, "trn_writer"):
             self.trn_writer.close()
