@@ -20,7 +20,7 @@ from tqdm import tqdm
 
 import sys, os
 sys.path.append(os.getcwd())
-from functions.preprocess import LunaDataset
+from functions.preprocess import LunaDataset_v2
 from functions.util import logging
 from functions.model import LunaModel
 
@@ -60,10 +60,46 @@ class LunaTrainingApp:
             default=1,
             type=int,
         )
+        
+        parser.add_argument('--balanced',
+            help="Balance the training data to half positive, half negative.",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument('--augmented',
+            help="Augment the training data.",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument('--augment-flip',
+            help="Augment the training data by randomly flipping the data left-right, up-down, and front-back.",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument('--augment-offset',
+            help="Augment the training data by randomly offsetting the data slightly along the X and Y axes.",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument('--augment-scale',
+            help="Augment the training data by randomly increasing or decreasing the size of the candidate.",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument('--augment-rotate',
+            help="Augment the training data by randomly rotating the data around the head-foot axis.",
+            action='store_true',
+            default=False,
+        )
+        parser.add_argument('--augment-noise',
+            help="Augment the training data by randomly adding noise to the data.",
+            action='store_true',
+            default=False,
+        )
 
         parser.add_argument(
             "--tb-prefix",
-            default="p2ch11",
+            default="p2ch12",
             help="Data prefix to use for Tensorboard run. Defaults to chapter.",
         )
 
@@ -76,7 +112,7 @@ class LunaTrainingApp:
         
         parser.add_argument(
             "--save-path",
-            default="luna_best.pt",
+            default="luna_best_v2.pt",
             help="Checkpoint filename for best model",
         )
         
@@ -108,9 +144,10 @@ class LunaTrainingApp:
         # return Adam(self.model.parameters())
 
     def initTrainDl(self):
-        train_ds = LunaDataset(
+        train_ds = LunaDataset_v2(
             val_stride=10,
             isValSet_bool=False,
+            ratio_int=int(self.cli_args.balanced)
         )
 
         batch_size = self.cli_args.batch_size
@@ -142,7 +179,7 @@ class LunaTrainingApp:
         return dl_subset
 
     def initValDl(self):
-        val_ds = LunaDataset(
+        val_ds = LunaDataset_v2(
             val_stride=10,
             isValSet_bool=True,
         )
@@ -211,7 +248,7 @@ class LunaTrainingApp:
                 torch.save(save_obj, model_save_path)
                 log.info(f"Saved new best checkpoint to {self.cli_args.save_path}")
                 
-        model_save_path = os.path.join(model_dir, "luna_final")                    
+        model_save_path = os.path.join(model_dir, "luna_final_v2")                    
 
         torch.save(save_obj, model_save_path)
         log.info(f"Saved final checkpoint to {model_save_path}")
@@ -317,27 +354,39 @@ class LunaTrainingApp:
 
         neg_count = int(negLabel_mask.sum())
         pos_count = int(posLabel_mask.sum())
+        
+        trueNeg_count = neg_correct = int((negLabel_mask & negPred_mask).sum())
+        truePos_count = pos_correct = int((posLabel_mask & posPred_mask).sum())
 
-        neg_correct = int((negLabel_mask & negPred_mask).sum())
-        pos_correct = int((posLabel_mask & posPred_mask).sum())
+        falseNeg_count = pos_count - pos_correct   # 실제 결절인것 - 결절로 예측한것중에 실제 결절인것 = 결절 아닌걸로 예측했는데 실제 결절인 것
+        falsePos_count = neg_count - neg_correct
 
         metrics_dict = {}
-        metrics_dict["loss/all"] = metrics_t[METRICS_LOSS_NDX].mean()
-        metrics_dict["loss/neg"] = metrics_t[METRICS_LOSS_NDX, negLabel_mask].mean()
-        metrics_dict["loss/pos"] = metrics_t[METRICS_LOSS_NDX, posLabel_mask].mean()
+        metrics_dict['loss/all'] = metrics_t[METRICS_LOSS_NDX].mean()
+        metrics_dict['loss/neg'] = metrics_t[METRICS_LOSS_NDX, negLabel_mask].mean()
+        metrics_dict['loss/pos'] = metrics_t[METRICS_LOSS_NDX, posLabel_mask].mean()
 
-        metrics_dict["correct/all"] = (
-            (pos_correct + neg_correct) / np.float32(metrics_t.shape[1]) * 100
-        )
-        metrics_dict["correct/neg"] = neg_correct / np.float32(neg_count) * 100
+        metrics_dict['correct/all'] = (pos_correct + neg_correct) / metrics_t.shape[1] * 100
+        metrics_dict['correct/neg'] = (neg_correct) / neg_count * 100
         try:
             metrics_dict["correct/pos"] = pos_correct / np.float32(pos_count) * 100
         except ZeroDivisionError:
             metrics_dict["correct/pos"] = 0
 
+        recall = metrics_dict['pr/recall'] = \
+            truePos_count / np.float32(truePos_count + falseNeg_count)
+        precision = metrics_dict['pr/precision'] = \
+            truePos_count / np.float32(truePos_count + falsePos_count)
+
+        metrics_dict['pr/f1_score'] = \
+            2 * (precision * recall) / (precision + recall)
+
         log.info(
             f"E{epoch_ndx} {mode_str:8} {metrics_dict['loss/all']:.4f} loss, "
-            f"{metrics_dict['correct/all']:-5.1f}% correct"
+            f"{metrics_dict['correct/all']:-5.1f}% correct, "
+            f"{metrics_dict['pr/precision']:.4f} precision, "
+            f"{metrics_dict['pr/recall']:.4f} recall, "
+            f"{metrics_dict['pr/f1_score']:.4f} f1 score"
         )
         log.info(
             f"E{epoch_ndx} {mode_str + '_neg':8} {metrics_dict['loss/neg']:.4f} loss, "
